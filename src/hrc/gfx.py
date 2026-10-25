@@ -261,6 +261,9 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
         if hit:
             after = hit["end"]
         if not hit:
+            from . import log
+            log.warn("%s: visual moment %d (%r, label %r) skipped: phrase is not inside the reel's segments.",
+                        reel.get("id", "?"), k, vm.get("phrase"), vm.get("label"))
             continue
         t_in = max(0.0, hit["start"] - lead_frames / fps)
         kind = vm.get("type", "text")
@@ -410,18 +413,18 @@ class GfxRenderer:
         lay: dict = {"mode": "free"}
         if self.landscape and t in ("image", "broll", "text", "counter"):
             side = -1 if hx > W / 2 else 1  # the open side of the frame
-            room = (hx - hs * 0.8) if side < 0 else (W - hx - hs * 0.8)
-            room = max(room, W * 0.3)
             top_lim = H * 0.05 if side < 0 else H * 0.2  # right side: stay under the channel logo
+            room, inner, upper = self._side_room(side, hx, hs)
             if t == "counter":  # big number over its label, on the open side (never behind the head)
-                return self._side_counter(ev, lay, side, room, hx, hs, top_lim)
+                return self._side_counter(ev, lay, side, room, inner, upper, hy, hs, top_lim)
             label = ev.get("label") if t != "text" else ev["text"]
             if t != "text" and ev.get("file") and self._wants_backdrop(ev):
                 lay["backdrop"] = backdrop_image(Path(ev.get("original") or ev["file"]), W, H, self.c2)
             elif t != "text" and ev.get("file"):
                 lay["img"] = trim(image_sprite(Path(ev["file"]), int(room * 0.85), int(H * 0.42)))
             typed = ev.get("anim") == "typewriter" and "img" not in lay
-            stack = stack_text(label or "", int(min(room * 0.9, W * 0.46)), int(H * (0.42 if "img" in lay else 0.7)),
+            max_h = (hy + hs * 0.4 - top_lim) if upper else H * (0.42 if "img" in lay else 0.7)
+            stack = stack_text(label or "", int(min(room * 0.9, W * 0.46)), int(max(max_h, H * 0.18)),
                                U, self.c2, typewriter=typed, meta=typed) if label else None
             if typed and stack is not None:
                 stack, lay["lines"] = stack
@@ -430,9 +433,7 @@ class GfxRenderer:
                 spr = _stack(lay["img"], stack) if stack is not None else lay["img"]
             if spr is None:
                 spr = np.zeros((2, 2, 4), np.uint8)
-            cx = (hx - hs * 0.8) / 2 if side < 0 else hx + hs * 0.8 + (W - hx - hs * 0.8) / 2
-            cx = min(max(cx, spr.shape[1] / 2 + W * 0.03), W - spr.shape[1] / 2 - W * 0.03)
-            cy = min(max(H * 0.5, spr.shape[0] / 2 + top_lim), H - spr.shape[0] / 2 - H * 0.05)
+            cx, cy = self._side_center(spr.shape[1], spr.shape[0], side, inner, upper, hy, hs, top_lim)
             lay.update(mode="side", spr=spr, cx=cx, cy=cy)
             self.layouts[ev["id"]] = lay
             return lay
@@ -474,7 +475,34 @@ class GfxRenderer:
         self.layouts[ev["id"]] = lay
         return lay
 
-    def _side_counter(self, ev: dict, lay: dict, side: int, room: float, hx: float, hs: float, top_lim: float) -> dict:
+    def _side_room(self, side: int, hx: float, hs: float) -> tuple[float, float, bool]:
+        """Width of the open side, measured from the shoulder line (body half-width ~1.3x head size).
+        If that is too narrow, use the upper part beside the head instead (above the shoulders).
+        Returns (room, inner edge x, upper)."""
+        W = self.W
+        body = hs * 1.3
+        room = (hx - body) if side < 0 else (W - hx - body)
+        if room >= W * 0.28:
+            return room, (hx - body) if side < 0 else (hx + body), False
+        head = hs * 0.8
+        room = max((hx - head) if side < 0 else (W - hx - head), W * 0.12)
+        return room, (hx - head) if side < 0 else (hx + head), True
+
+    def _side_center(self, w: float, h: float, side: int, inner: float, upper: bool, hy: float, hs: float,
+                     top_lim: float) -> tuple[float, float]:
+        """Centre of the open side, never crossing the body/head edge or the frame edge."""
+        W, H = self.W, self.H
+        pad = W * 0.03
+        cx = inner / 2 if side < 0 else inner + (W - inner) / 2
+        lo, hi = w / 2 + pad, W - w / 2 - pad
+        lo, hi = (lo, min(hi, inner - w / 2)) if side < 0 else (max(lo, inner + w / 2), hi)
+        cx = min(max(cx, lo), hi) if lo <= hi else (lo if side < 0 else hi)
+        target = (hy - hs * 0.2) if upper else H * 0.5
+        cy = min(max(target, h / 2 + top_lim), H - h / 2 - H * 0.05)
+        return cx, cy
+
+    def _side_counter(self, ev: dict, lay: dict, side: int, room: float, inner: float, upper: bool, hy: float,
+                      hs: float, top_lim: float) -> dict:
         W, H, U = self.W, self.H, self.U
         max_w = int(min(room * 0.9, W * 0.46))
         final = format_value(*parse_value(ev.get("value")))
@@ -485,9 +513,10 @@ class GfxRenderer:
         num_h = trim(text_sprite(final, nsize)).shape[0]
         total = num_h + lab.shape[0]
         w = max(lab.shape[1], trim(text_sprite(final, nsize)).shape[1])
-        cx = (hx - hs * 0.8) / 2 if side < 0 else hx + hs * 0.8 + (W - hx - hs * 0.8) / 2
-        cx = min(max(cx, w / 2 + W * 0.03), W - w / 2 - W * 0.03)
-        top = min(max(H * 0.45 - total / 2, top_lim), H * 0.95 - total)
+        cx, cy = self._side_center(w, total, side, inner, upper, hy, hs, top_lim)
+        if not upper:
+            cy = min(max(H * 0.45, total / 2 + top_lim), H * 0.95 - total / 2)
+        top = cy - total / 2
         lay.update(mode="side", front=True, spr=lab, num_size=nsize, cx=cx, num_cy=top + num_h / 2,
                    cy=top + num_h + lab.shape[0] / 2)
         self.layouts[ev["id"]] = lay
