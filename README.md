@@ -25,7 +25,7 @@ caption, logo and sound sits on its own track. The audio always stays Telugu.
 | 7 | Mac + Claude | `hrc translate prepare` → Claude fills translations → `hrc translate build` | Subtitle files for all 5 languages in `subs/` | — |
 | 8 | Mac | `hrc assets` | Downloads the photos the graphics use (free sources, licence noted) | 1–2 min |
 | 9 | Mac | `hrc render` | Renders every reel in 5 languages + the Resolve pack | ~3–5 min per reel |
-| 10 | Mac | `hrc qa` | Checks length, loudness, captions, faces → `output/qa_report.md` | 1 min |
+| 10 | Mac | `hrc qa` | Checks length, loudness, captions, faces → `qa_report.md` | 1 min |
 | 11 | You | DaVinci Resolve | Import the layered timeline, polish, export (see below) | your call |
 
 Work on some reels only: add `--reel reel02,reel05`. Redo a step from scratch: add `--force`.
@@ -50,8 +50,8 @@ Your own sound effects go in `assets/sfx/<kind>/` and are used instead of HRC's 
 ## What you get
 
 ```
+qa_report.md                         checks for every file (in the HRC folder)
 output/
-  qa_report.md                       checks for every file, with frame grabs
   reel02/
     reel02_te.mp4  reel02_hi.mp4  reel02_en.mp4  reel02_ta.mp4  reel02_kn.mp4   ready to post
     reel02_clean.mp4                 no captions
@@ -143,6 +143,7 @@ A reel can switch off its ending with `"outro": false`.
 | Resolve shows clips as offline | Keep `media/` next to the .fcpxml; or right-click the bin → *Relink Selected Clips* and pick `media/` |
 | A graphic covers the face | Delete its V3 cut-out clip back in, or move the V2 clip; check `qa_report.md` |
 | Telugu letters look broken in graphics | `brew install libraqm`, then `pip install --force-reinstall pillow` |
+| Telugu letters broken only when run with `nohup` | Run long jobs as `bash -c 'source .venv/bin/activate && hrc render'` in the background; plain `nohup hrc ...` loses the text-shaping library |
 | No music | Add files to `assets/music/<mood>/` and render again |
 
 ## Limits

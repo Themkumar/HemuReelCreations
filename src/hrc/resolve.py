@@ -19,7 +19,12 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape as _xml_escape
+
+
+def escape(text: str) -> str:
+    """Escape text for XML attributes and bodies, including double quotes."""
+    return _xml_escape(str(text), {'"': "&quot;"})
 
 import cv2
 import numpy as np

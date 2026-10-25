@@ -170,3 +170,8 @@ def test_snap_keeps_cut_already_between_words():
     assert snap_to_words(4.9, words, "start") == 4.9
     # inside a word: move to the nearest gap
     assert snap_to_words(5.3, words, "end") == 5.425
+
+
+def test_resolve_escape_quotes():
+    from hrc.resolve import escape
+    assert escape('"BEST" <A&B>') == "&quot;BEST&quot; &lt;A&amp;B&gt;"
