@@ -10,6 +10,11 @@ from .util import ffmpeg, run
 MUSIC_EXT = ("*.mp3", "*.wav", "*.m4a", "*.aac", "*.flac", "*.ogg")
 
 
+# Relative loudness per sound type, so the mix stays cinematic rather than cartoonish.
+KIND_DB = {"type": -6, "glitch": -6, "pop": -8, "whoosh": -3, "swish": -5, "hit": -1, "impact": -4,
+           "riser": -4, "count": -3, "shimmer": -5, "ding": -9}
+
+
 def pick_music(music_dir: Path, mood: str, rng: random.Random) -> Path | None:
     for folder in (music_dir / mood, music_dir):
         files = sorted(f for ext in MUSIC_EXT for f in folder.glob(ext))
@@ -56,7 +61,8 @@ def mix(cfg, speech: Path, duration: float, events: list[dict], mood: str, out: 
         ms = int(t * 1000)
         inputs += ["-i", f]
         chains.append(f"[{idx}:a]aresample=48000,aformat=channel_layouts=stereo,"
-                      f"volume={ac.get('sfx_db', -6) + ev.get('gain_db', 0)}dB,adelay={ms}|{ms}[s{idx}]")
+                      f"volume={ac.get('sfx_db', -6) + KIND_DB.get(ev['kind'], 0) + ev.get('gain_db', 0)}dB,"
+                      f"adelay={ms}|{ms}[s{idx}]")
         mix_in.append(f"[s{idx}]")
         used["sfx"].append({"t": round(ev["t"], 3), "kind": ev["kind"], "file": f.name})
         idx += 1

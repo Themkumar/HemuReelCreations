@@ -34,7 +34,9 @@ def duration(reel: dict) -> float:
 
 
 def context_card_sec(reel: dict) -> float:
-    return 1.6 if reel.get("context_card") and reel.get("show_context_card", True) else 0.0
+    # The opening text card is off: it read as a cheap hook and showed Telugu in every language.
+    # A reel can still opt in with "show_context_card": true.
+    return 1.6 if reel.get("context_card") and reel.get("show_context_card", False) else 0.0
 
 
 def to_reel_time(reel: dict, t: float) -> float | None:

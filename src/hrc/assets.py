@@ -93,6 +93,9 @@ def _cutout(path: Path) -> Path:
         import numpy as np
 
         src = Image.open(path).convert("RGBA")
+        small = np.asarray(src.resize((96, 96)))
+        if small[..., 3].min() < 250 or len(np.unique(small[..., :3].reshape(-1, 3), axis=0)) < 64:
+            return path  # already a graphic (flag, icon, transparent PNG): nothing to cut out
         cut = remove(src)
         before = (np.asarray(src)[..., 3] > 16).mean()
         after = (np.asarray(cut)[..., 3] > 16).mean()

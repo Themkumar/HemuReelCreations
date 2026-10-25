@@ -1,4 +1,5 @@
-"""Person matte for each reel: Robust Video Matting on MPS, MediaPipe as fallback.
+"""Person matte for each reel: Apple Vision person segmentation on the Mac (most accurate),
+then Robust Video Matting on MPS, then MediaPipe.
 
 Runs on the reframed 9:16 plate and writes mattes/<reel>.mp4 (grey = person alpha).
 """
@@ -31,9 +32,35 @@ def _writer(out: Path, W: int, H: int, fps: float):
                             stdin=subprocess.PIPE)
 
 
+VISION_SRC = Path(__file__).with_name("vision_matte.swift")
+
+
+def _vision_binary() -> Path | None:
+    """Compile the Swift helper once (needs Xcode Command Line Tools: swiftc)."""
+    import platform
+    import shutil
+
+    if platform.system() != "Darwin":
+        return None
+    out = Path.home() / ".cache" / "hrc" / "vision_matte"
+    if out.exists() and out.stat().st_mtime >= VISION_SRC.stat().st_mtime:
+        return out
+    swiftc = shutil.which("swiftc")
+    if not swiftc:
+        return None
+    out.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run([swiftc, "-O", str(VISION_SRC), "-o", str(out)], capture_output=True, text=True)
+    if r.returncode != 0:
+        log.warn("Could not build the Apple Vision helper: %s", r.stderr.strip()[-400:])
+        return None
+    return out
+
+
 def pick_engine(pref: str) -> str:
     if pref != "auto":
         return pref
+    if _vision_binary():
+        return "vision"
     try:
         import torch  # noqa: F401
         return "rvm"
@@ -57,7 +84,40 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
     log.info("Matting %s with %s...", plate.name, engine)
     w = _writer(out, W, H, fps)
     prev, diffs = None, []
-    if engine == "rvm":
+    if engine == "vision":
+        import cv2
+
+        binp = _vision_binary()
+        if not binp:
+            log.warn("Apple Vision helper unavailable; falling back.")
+            w.stdin.close(); w.wait()
+            return make_matte(plate, out, "rvm" if pick_engine("auto") == "vision" else pick_engine("auto"), downsample, smooth)
+        proc = subprocess.Popen([str(binp), str(W), str(H), "accurate"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        import threading
+
+        def feed():
+            try:
+                for fr in _frames(plate, W, H):
+                    proc.stdin.write(fr.tobytes())
+            finally:
+                proc.stdin.close()
+
+        th = threading.Thread(target=feed, daemon=True); th.start()
+        while True:
+            hdr = proc.stdout.read(8)
+            if len(hdr) < 8:
+                break
+            mw, mh = np.frombuffer(hdr, "<u4")
+            if mw == 0:
+                a = prev if prev is not None else np.zeros((H, W), np.float32)
+            else:
+                m = np.frombuffer(proc.stdout.read(int(mw) * int(mh)), np.uint8).reshape(int(mh), int(mw))
+                a = cv2.resize(m, (W, H), interpolation=cv2.INTER_CUBIC).astype(np.float32) / 255.0
+                a = cv2.GaussianBlur(np.clip((a - 0.15) / 0.7, 0, 1), (0, 0), 1.2)
+            prev, a = _smooth(prev, a, smooth, diffs)
+            w.stdin.write((a * 255).astype(np.uint8).tobytes())
+        th.join(); proc.wait()
+    elif engine == "rvm":
         import torch
 
         dev = torch_device("auto")

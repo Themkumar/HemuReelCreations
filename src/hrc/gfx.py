@@ -13,8 +13,11 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 FONT_DIR = Path(__file__).resolve().parents[2] / "assets" / "fonts"
 SCRIPT_FONT = [((0x0C00, 0x0C7F), "NotoSansTelugu"), ((0x0900, 0x097F), "NotoSansDevanagari"),
                ((0x0B80, 0x0BFF), "NotoSansTamil"), ((0x0C80, 0x0CFF), "NotoSansKannada")]
-ANIM_IN = ("pop", "slide", "glitch", "zoom")
-SFX_FOR_ANIM = {"pop": "pop", "slide": "whoosh", "glitch": "glitch", "zoom": "hit"}
+ANIM_IN = ("typewriter", "fade", "glitch", "zoom", "slide")
+SFX_FOR_ANIM = {"pop": "pop", "slide": "whoosh", "glitch": "glitch", "zoom": "hit", "fade": "shimmer", "typewriter": "type"}
+ANIMS_FOR = {"text": ("typewriter", "glitch", "fade", "zoom"), "image": ("zoom", "slide", "fade"),
+             "broll": ("zoom", "fade"), "counter": ("fade", "zoom")}
+CURRENCY = "₹$€£¥"
 
 
 # ---------- easing ----------
@@ -32,13 +35,15 @@ def clamp01(x: float) -> float:
 
 
 # ---------- fonts and sprites ----------
-def font_for(text: str, size: int, weight: int = 900, display: bool = False) -> ImageFont.FreeTypeFont:
+def font_for(text: str, size: int, weight: int = 900, display=False) -> ImageFont.FreeTypeFont:
     name = "NotoSans"
     for (lo, hi), fam in SCRIPT_FONT:
         if any(lo <= ord(c) <= hi for c in text):
             name = fam
             break
-    if display and name == "NotoSans" and (FONT_DIR / "Anton-400.ttf").exists():
+    if display == "type" and name == "NotoSans" and (FONT_DIR / "SpecialElite-400.ttf").exists():
+        name, weight = "SpecialElite", 400  # typewriter face
+    elif display and name == "NotoSans" and (FONT_DIR / "Anton-400.ttf").exists():
         name, weight = "Anton", 400  # tall condensed headline face for Latin text
     path = FONT_DIR / f"{name}-{weight}.ttf"
     if not path.exists():
@@ -55,7 +60,7 @@ def hex_rgb(h: str) -> tuple[int, int, int]:
 
 
 def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), glow=None, max_w: int = 0,
-                display: bool = False, box=None) -> np.ndarray:
+                display=False, box=None) -> np.ndarray:
     font = font_for(text, size, display=display)
     # shrink to fit width
     while max_w and size > 24:
@@ -258,12 +263,13 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
         if not hit:
             continue
         t_in = max(0.0, hit["start"] - lead_frames / fps)
-        anim = rng.choice([a for a in ANIM_IN if a != last_anim])
-        last_anim = anim
         kind = vm.get("type", "text")
         asset = assets.get(str(k), {}) if isinstance(assets, dict) else {}
         if kind in ("image", "broll") and not asset.get("file"):
             kind = "text"  # fallback motion graphic
+        choices = [a for a in ANIMS_FOR.get(kind, ANIM_IN) if a != last_anim] or list(ANIM_IN)
+        anim = vm.get("anim") or rng.choice(choices)
+        last_anim = anim
         anchor = {"image": "beside_head", "broll": "top_split", "text": "behind_head", "counter": "beside_head",
                   "arrow": "beside_head", "map": "beside_head"}.get(kind, "beside_head")
         events.append({
@@ -273,11 +279,66 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
             "file": asset.get("file"), "label": vm.get("label") if kind in ("image", "broll") else None, "sfx_in": SFX_FOR_ANIM[anim], "major": True,
             "style": vm.get("style", "auto"), "original": asset.get("original"),
         })
+        events[-1]["sfx"] = _sfx_for(events[-1])
     events.sort(key=lambda e: e["t_in"])
     for a, b in zip(events, events[1:]):  # no overlap between major elements
         if a["t_out"] > b["t_in"] - 0.12:
             a["t_out"] = round(max(a["t_in"] + 0.6, b["t_in"] - 0.12), 3)
     return [e for e in events if e["t_out"] - e["t_in"] >= 0.5]
+
+
+def type_duration(text: str) -> float:
+    return min(1.3, max(0.4, 0.055 * len(text.replace("*", ""))))
+
+
+def parse_value(v) -> tuple[str, float, str, int]:
+    """'₹50,000' -> ('₹', 50000, '', 0); '2.5%' -> ('', 2.5, '%', 1); '10K+' -> ('', 10, 'K+', 0)."""
+    s = str(v or "0").strip()
+    i = 0
+    while i < len(s) and not (s[i].isdigit() or s[i] == "."):
+        i += 1
+    j = i
+    while j < len(s) and (s[j].isdigit() or s[j] in ".,"):
+        j += 1
+    num = s[i:j].replace(",", "")
+    try:
+        val = float(num) if num else 0.0
+    except ValueError:
+        val = 0.0
+    dec = len(num.split(".")[1]) if "." in num else 0
+    return s[:i].strip() + ("" if not s[:i].strip() or s[:i].strip() in CURRENCY else " "), val, s[j:], dec
+
+
+def format_value(prefix: str, val: float, suffix: str, dec: int) -> str:
+    body = f"{val:,.{dec}f}" if dec else f"{int(round(val)):,}"
+    if prefix == "₹" and not dec:  # Indian grouping: 1,00,000
+        n = str(int(round(val)))
+        body = n if len(n) <= 3 else (",".join([n[:-3][::-1][i:i + 2][::-1] for i in range(0, len(n) - 3, 2)][::-1]) + "," + n[-3:])
+    return f"{prefix}{body}{suffix}"
+
+
+def _sfx_for(ev: dict) -> list[dict]:
+    """Sounds tied to one graphic: matched to how it animates, kept soft and cinematic."""
+    t0, anim, out = ev["t_in"], ev["anim"], []
+    if ev["type"] == "counter":
+        out.append({"t": t0, "kind": "count", "gain_db": -1})
+        if any(c in str(ev.get("value") or "") for c in CURRENCY):
+            out.append({"t": t0, "kind": "whoosh", "gain_db": -8})
+        return out
+    if ev.get("style") == "backdrop" or (ev["type"] in ("image", "broll") and anim == "zoom"):
+        out.append({"t": t0, "kind": "whoosh", "gain_db": -3})
+        out.append({"t": t0 + 0.12, "kind": "hit", "gain_db": -6})
+    if anim == "typewriter":
+        text = (ev.get("text") if ev["type"] == "text" else ev.get("label")) or ""
+        chars = [c for c in text.replace("*", "") if not c.isspace()]
+        n = len(chars)
+        if n:
+            dur = type_duration(text)
+            for i in range(0, n, max(1, n // 14)):
+                out.append({"t": t0 + dur * i / n, "kind": "type", "gain_db": -6})
+    elif anim in SFX_FOR_ANIM and not out:
+        out.append({"t": t0, "kind": SFX_FOR_ANIM[anim], "gain_db": -2 if anim == "zoom" else 0})
+    return out
 
 
 class GfxRenderer:
@@ -347,17 +408,23 @@ class GfxRenderer:
         hx, hy, hs = head["x"], head["y"], max(head["size"], U * 0.12)
         t = ev["type"]
         lay: dict = {"mode": "free"}
-        if self.landscape and t in ("image", "broll", "text"):
+        if self.landscape and t in ("image", "broll", "text", "counter"):
             side = -1 if hx > W / 2 else 1  # the open side of the frame
             room = (hx - hs * 0.8) if side < 0 else (W - hx - hs * 0.8)
             room = max(room, W * 0.3)
+            top_lim = H * 0.05 if side < 0 else H * 0.2  # right side: stay under the channel logo
+            if t == "counter":  # big number over its label, on the open side (never behind the head)
+                return self._side_counter(ev, lay, side, room, hx, hs, top_lim)
             label = ev.get("label") if t != "text" else ev["text"]
             if t != "text" and ev.get("file") and self._wants_backdrop(ev):
                 lay["backdrop"] = backdrop_image(Path(ev.get("original") or ev["file"]), W, H, self.c2)
             elif t != "text" and ev.get("file"):
                 lay["img"] = trim(image_sprite(Path(ev["file"]), int(room * 0.85), int(H * 0.42)))
+            typed = ev.get("anim") == "typewriter" and "img" not in lay
             stack = stack_text(label or "", int(min(room * 0.9, W * 0.46)), int(H * (0.42 if "img" in lay else 0.7)),
-                               U, self.c2) if label else None
+                               U, self.c2, typewriter=typed, meta=typed) if label else None
+            if typed and stack is not None:
+                stack, lay["lines"] = stack
             spr = stack
             if "img" in lay:
                 spr = _stack(lay["img"], stack) if stack is not None else lay["img"]
@@ -365,7 +432,7 @@ class GfxRenderer:
                 spr = np.zeros((2, 2, 4), np.uint8)
             cx = (hx - hs * 0.8) / 2 if side < 0 else hx + hs * 0.8 + (W - hx - hs * 0.8) / 2
             cx = min(max(cx, spr.shape[1] / 2 + W * 0.03), W - spr.shape[1] / 2 - W * 0.03)
-            cy = min(max(H * 0.5, spr.shape[0] / 2 + H * 0.05), H - spr.shape[0] / 2 - H * 0.05)
+            cy = min(max(H * 0.5, spr.shape[0] / 2 + top_lim), H - spr.shape[0] / 2 - H * 0.05)
             lay.update(mode="side", spr=spr, cx=cx, cy=cy)
             self.layouts[ev["id"]] = lay
             return lay
@@ -407,9 +474,29 @@ class GfxRenderer:
         self.layouts[ev["id"]] = lay
         return lay
 
+    def _side_counter(self, ev: dict, lay: dict, side: int, room: float, hx: float, hs: float, top_lim: float) -> dict:
+        W, H, U = self.W, self.H, self.U
+        max_w = int(min(room * 0.9, W * 0.46))
+        final = format_value(*parse_value(ev.get("value")))
+        lab = fit_text(ev["text"], max_w, H * 0.12, int(U * 0.1), int(U * 0.045), glow=self.c2)
+        nsize = int(U * 0.3)
+        while nsize > 40 and trim(text_sprite(final + "8", nsize)).shape[1] > max_w:
+            nsize = int(nsize * 0.92)
+        num_h = trim(text_sprite(final, nsize)).shape[0]
+        total = num_h + lab.shape[0]
+        w = max(lab.shape[1], trim(text_sprite(final, nsize)).shape[1])
+        cx = (hx - hs * 0.8) / 2 if side < 0 else hx + hs * 0.8 + (W - hx - hs * 0.8) / 2
+        cx = min(max(cx, w / 2 + W * 0.03), W - w / 2 - W * 0.03)
+        top = min(max(H * 0.45 - total / 2, top_lim), H * 0.95 - total)
+        lay.update(mode="side", front=True, spr=lab, num_size=nsize, cx=cx, num_cy=top + num_h / 2,
+                   cy=top + num_h + lab.shape[0] / 2)
+        self.layouts[ev["id"]] = lay
+        return lay
+
     def draw_behind(self, layer: np.ndarray, t: float, head: dict) -> list[tuple]:
         """Draw onto the background layer. Returns boxes of drawn elements (for QA)."""
         boxes = []
+        self.front_ops: list[tuple] = []
         any_active = bool(self.active(t))
         self.particles.draw(layer, 0.6 if any_active else 0.25)
         hx, hy, hs = head["x"], head["y"], max(head["size"], self.U * 0.12)
@@ -417,22 +504,30 @@ class GfxRenderer:
             local = t - ev["t_in"]
             out_left = ev["t_out"] - t
             p_in = clamp01(local / 0.28)
-            p_out = clamp01(out_left / 0.22)
-            alpha = min(1.0, p_out * 1.2)
+            p_out = clamp01(out_left / 0.4)
+            alpha = ease_out_cubic(p_out)  # every element fades out softly
             scale = 1.0
             dx = dy = 0.0
-            if ev["anim"] == "pop":
+            anim = ev["anim"]
+            if anim == "pop":
                 scale = ease_out_back(p_in)
-            elif ev["anim"] == "zoom":
-                scale = 1 + 1.4 * (1 - ease_out_cubic(p_in)); alpha *= p_in
-            elif ev["anim"] == "slide":
-                dx = (1 - ease_out_cubic(p_in)) * self.W * 0.6
-            elif ev["anim"] == "glitch":
-                alpha *= 1.0 if p_in >= 1 or self.rng.random() > 0.35 else 0.0
-                dx = self.rng.uniform(-30, 30) * (1 - p_in)
-            scale *= 0.7 + 0.3 * p_out
+            elif anim == "zoom":  # settles in from slightly big, like a camera push
+                q = ease_out_cubic(clamp01(local / 0.4))
+                scale = 1 + 0.3 * (1 - q); alpha *= clamp01(local / 0.25)
+            elif anim == "slide":
+                dx = (1 - ease_out_cubic(p_in)) * self.W * 0.35; alpha *= clamp01(local / 0.2)
+            elif anim == "fade":
+                q = ease_out_cubic(clamp01(local / 0.5))
+                alpha *= q; dy = (1 - q) * self.U * 0.04
+            elif anim == "glitch":
+                alpha *= 1.0 if local > 0.2 or self.rng.random() > 0.3 else 0.25
+            scale *= 0.97 + 0.03 * p_out
             lay = self._layout(ev, head)
             spr = lay["spr"]
+            if anim == "typewriter" and lay.get("lines"):
+                spr = self._typed(ev, lay, local)
+            elif anim == "glitch" and (local < 0.35 or (local % 1.7) < 0.1):
+                spr = glitch_fx(spr, self.rng, 1.0 if local < 0.35 else 0.5)
             sh, sw = spr.shape[0] * scale, spr.shape[1] * scale
             num_cy = None
             if lay.get("backdrop") is not None:  # the picture replaces the wall behind the speaker
@@ -449,6 +544,7 @@ class GfxRenderer:
             if lay["mode"] == "side":
                 bob = math.sin(local * 2.0) * self.U * 0.004
                 cx, cy = lay["cx"], lay["cy"] + bob
+                num_cy = lay.get("num_cy", 0) + bob
                 if ev["anim"] == "slide":
                     dx *= 1 if lay["cx"] > self.W / 2 else -1
             elif lay["mode"] == "band":
@@ -487,21 +583,66 @@ class GfxRenderer:
                 cx = min(max(cx, sw / 2 + self.W * 0.02), self.W - sw / 2 - self.W * 0.02)
                 num_cy = cy - sh / 2 - extra_top / 2
             cx, cy = cx + dx, cy + dy
-            blend(layer, spr, cx, cy, scale, alpha)
+            front = bool(lay.get("front"))
+            put = (lambda *a: self.front_ops.append(a)) if front else (lambda *a: blend(layer, *a))
+            put(spr, cx, cy, scale, alpha)
             if ev["type"] == "counter" and ev.get("value"):
-                try:
-                    target = float(str(ev["value"]).replace(",", "").rstrip("%+"))
-                    suffix = "%" if str(ev["value"]).endswith("%") else ("+" if str(ev["value"]).endswith("+") else "")
-                    cur = target * ease_out_cubic(clamp01(local / 1.0))
-                    num = f"{int(cur):,}{suffix}" if target >= 10 else f"{cur:.1f}{suffix}"
-                    blend(layer, trim(text_sprite(num, lay["num_size"], fill=self.c1, glow=self.c2)),
-                          cx, num_cy + dy, scale, alpha)
-                except ValueError:
-                    pass
+                prefix, target, suffix, dec = parse_value(ev["value"])
+                cur = target * ease_out_cubic(clamp01(local / 1.0))
+                num = format_value(prefix, cur, suffix, dec)
+                if prefix.strip() in tuple(CURRENCY) and prefix.strip():
+                    self._money_rain(layer, prefix.strip(), cx, num_cy, local, alpha)
+                put(trim(text_sprite(num, lay["num_size"], fill=self.c1, glow=self.c2)),
+                    cx, num_cy + dy, scale, alpha)
             elif ev["type"] == "arrow":
                 blend(layer, self._label(ev), cx, cy - 110, scale, alpha)
-            boxes.append((ev["id"], cx - sw / 2, cy - sh / 2, cx + sw / 2, cy + sh / 2))
+            boxes.append((ev["id"] + ("!front" if front else ""), cx - sw / 2, cy - sh / 2, cx + sw / 2, cy + sh / 2))
         return boxes
+
+    def _typed(self, ev: dict, lay: dict, local: float) -> np.ndarray:
+        """Typewriter reveal: characters appear one by one, line after line (cached per step)."""
+        lines = lay["lines"]
+        total = sum(len(l["text"]) for l in lines)
+        n = int(round(total * clamp01(local / type_duration(ev.get("text") or ""))))
+        key = (ev["id"], n)
+        cache = self.__dict__.setdefault("_typed_cache", {})
+        if key in cache:
+            return cache[key]
+        full = lay["spr"]
+        out = full.copy()
+        left = n
+        for l in lines:
+            k = max(0, min(len(l["text"]), left))
+            left -= len(l["text"])
+            x_cut = int(l["w"] * k / max(1, len(l["text"]))) if k < len(l["text"]) else full.shape[1]
+            out[l["y0"]:l["y1"], x_cut:, 3] = 0
+            if 0 < k < len(l["text"]) or (k == 0 and left + len(l["text"]) == 0):
+                cur_x = min(full.shape[1] - 4, x_cut + 2)  # blinking-free cursor bar
+                out[l["y0"] + 6:l["y1"] - 6, cur_x:cur_x + max(3, self.U // 180)] = (*self.c1, 255)
+        if len(cache) > 400:
+            cache.clear()
+        cache[key] = out
+        return out
+
+    def _money_rain(self, layer: np.ndarray, sym: str, cx: float, cy: float, local: float, alpha: float) -> None:
+        """Currency symbols drifting up behind a money counter."""
+        spr = self.__dict__.setdefault("_sym", {}).get(sym)
+        if spr is None:
+            spr = trim(text_sprite(sym, int(self.U * 0.07), fill=self.c1, glow=self.c2))
+            self._sym[sym] = spr
+        rng = np.random.default_rng(7)
+        for i in range(9):
+            x0 = cx + rng.uniform(-0.22, 0.22) * self.W
+            speed = rng.uniform(0.12, 0.3) * self.H
+            ph = rng.uniform(0, 1.5)
+            y = cy + self.H * 0.25 - ((local + ph) * speed) % (self.H * 0.6)
+            a = alpha * 0.55 * clamp01(local / 0.4)
+            blend(layer, spr, x0, y, rng.uniform(0.6, 1.1), a)
+
+    def draw_front(self, frame: np.ndarray) -> None:
+        """Elements drawn over the speaker (after the cut-out), e.g. counters in the reel's video box."""
+        for spr, cx, cy, scale, alpha in getattr(self, "front_ops", []):
+            blend(frame, spr, cx, cy, scale, alpha)
 
     @staticmethod
     def _wants_backdrop(ev: dict) -> bool:
@@ -596,7 +737,8 @@ def backdrop_image(path: Path, W: int, H: int, tint=(232, 37, 43)) -> np.ndarray
     return np.clip(img * v[..., None], 0, 255).astype(np.uint8)
 
 
-def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43)) -> np.ndarray:
+def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43), typewriter: bool = False,
+               meta: bool = False):
     """Stacked kinetic words: short white words, the key word huge in the accent colour.
     Mark key words with *stars*; otherwise the longest word is the key word."""
     words = label.split()
@@ -628,8 +770,9 @@ def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43))
         for txt, key in lines:
             size = int(U * (0.26 if key else 0.14) * scale)
             fill = accent if key else (255, 255, 255)
-            sprs.append(trim(text_sprite(txt if not txt.isascii() else txt.upper(), size, fill=fill,
-                                         stroke=(0, 0, 0), max_w=max_w, display=True), size // 10))
+            shown = txt if (not txt.isascii() or typewriter) else txt.upper()
+            sprs.append(trim(text_sprite(shown, size, fill=fill, stroke=(0, 0, 0), max_w=max_w,
+                                         display="type" if typewriter else True), size // 10))
         h = sum(x.shape[0] for x in sprs)
         if h <= max_h or scale < 0.45:
             break
@@ -637,7 +780,24 @@ def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43))
     w = max(x.shape[1] for x in sprs)
     out = np.zeros((h, w, 4), np.uint8)
     y = 0
-    for x in sprs:  # left-aligned like the reference edits
+    info = []
+    for (txt, _), x in zip(lines, sprs):  # left-aligned like the reference edits
         out[y:y + x.shape[0], :x.shape[1]] = np.maximum(out[y:y + x.shape[0], :x.shape[1]], x)
+        info.append({"text": txt, "y0": y, "y1": y + x.shape[0], "w": x.shape[1]})
         y += x.shape[0]
+    return (out, info) if meta else out
+
+
+def glitch_fx(spr: np.ndarray, rng, amount: float = 1.0) -> np.ndarray:
+    """RGB split plus a few torn horizontal slices."""
+    h, w = spr.shape[:2]
+    s = int(2 + amount * w * 0.02)
+    out = spr.copy()
+    out[..., 0] = np.roll(spr[..., 0], s, axis=1)
+    out[..., 2] = np.roll(spr[..., 2], -s, axis=1)
+    out[..., 3] = np.maximum.reduce([spr[..., 3], np.roll(spr[..., 3], s, axis=1), np.roll(spr[..., 3], -s, axis=1)])
+    for _ in range(int(2 + 3 * amount)):
+        y0 = int(rng.integers(0, max(1, h - 4)))
+        hh = int(rng.integers(3, max(4, h // 6)))
+        out[y0:y0 + hh] = np.roll(out[y0:y0 + hh], int(rng.integers(-s * 3, s * 3 + 1)), axis=1)
     return out

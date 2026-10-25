@@ -141,6 +141,23 @@ def crop_path(faces: dict, shots: list[dict], t0: float, t1: float, fps: float, 
         xs = [f["cx"] for f in (face_at(t, None) for t in np.arange(ts, min(te, ts + 1.5), 0.2)) if f]
         return float(np.median(xs)) * src_w if xs else None
 
+    def split_panel(ts, te, target):
+        """Split-screen shot (two people side by side, each in a half): the speaker's half, else None."""
+        hits = seen = 0
+        for t in np.arange(ts, min(te, ts + 3.0), 0.2):
+            fs = [f for f in (samples[int(np.argmin(np.abs(times - t)))]["faces"] if len(times) else [])
+                  if f["h"] > 0.05]
+            if not fs:
+                continue
+            seen += 1
+            left = [f for f in fs if f["cx"] < 0.42]
+            right = [f for f in fs if f["cx"] > 0.58]
+            if left and right and max(left[0]["h"], right[0]["h"]) < 2.5 * min(left[0]["h"], right[0]["h"]):
+                hits += 1
+        if target is None or seen == 0 or hits < 0.5 * seen:
+            return None
+        return (0.0, src_w / 2) if target < src_w / 2 else (src_w / 2, float(src_w))
+
     fx, fy = OneEuro(fps, min_cutoff, beta), OneEuro(fps, min_cutoff, beta)
     hx, hy = OneEuro(fps, 1.2, 0.02), OneEuro(fps, 1.2, 0.02)  # head follow for GFX
     bounds = [t0] + cut_times + [t1]
@@ -156,26 +173,38 @@ def crop_path(faces: dict, shots: list[dict], t0: float, t1: float, fps: float, 
             new_shot = True
         if new_shot:
             fx.reset(); fy.reset(); hx.reset(); hy.reset(); prev_cx = None; vel = 0.0
-            cam_x = shot_target(t, bounds[next_cut + 1] if next_cut + 1 < len(bounds) else t1)
+            te_ = bounds[next_cut + 1] if next_cut + 1 < len(bounds) else t1
+            cam_x = shot_target(t, te_)
+            panel = split_panel(t, te_, cam_x)
+            if panel:  # crop inside the speaker's half only; face a bit off-centre, room for graphics
+                cw = (panel[1] - panel[0]) * 0.8
+                lo_x, hi_x = panel[0], panel[1] - cw
+                mid = (panel[0] + panel[1]) / 2
+                bias = cw * 0.12 * (1 if cam_x >= mid else -1)
+            else:
+                cw, lo_x, hi_x, bias = base_w, 0.0, src_w - base_w, 0.0
+            ch = cw / aspect
+            if cam_x is not None:
+                cam_x += bias
         face = face_at(t, prev_cx) or prev_face or {"cx": 0.5, "cy": 0.4, "w": 0.1, "h": 0.15}
         prev_cx, prev_face = face["cx"], face
         sx_face = fx(face["cx"] * src_w)
         cy = fy(face["cy"] * src_h)
         if cam_x is None:
-            cam_x = sx_face
-        off = sx_face - cam_x
-        dz = deadzone * base_w
+            cam_x = sx_face + bias
+        off = sx_face + bias - cam_x
+        dz = deadzone * cw
         if abs(off) > dz:  # pan toward the face, eased, speed-limited
             want = (off - np.sign(off) * dz) * 0.08
-            lim = max_pan * base_w
+            lim = max_pan * cw
             vel = 0.85 * vel + 0.15 * float(np.clip(want, -lim, lim))
         else:
             vel *= 0.8
         cam_x += vel
-        x = float(np.clip(cam_x - base_w / 2, 0, src_w - base_w))
-        y = float(np.clip(cy - base_h * head_room, 0, src_h - base_h))
-        sx = out_w / base_w
+        x = float(np.clip(cam_x - cw / 2, lo_x, hi_x))
+        y = float(np.clip(cy - ch * head_room, 0, src_h - ch))
+        sx = out_w / cw
         head = {"x": (hx(face["cx"] * src_w) - x) * sx, "y": (hy(face["cy"] * src_h) - y) * sx,
                 "size": face["h"] * src_h * sx}
-        frames.append({"t": round(t, 4), "x": x, "y": y, "w": base_w, "h": base_h, "head": head})
+        frames.append({"t": round(t, 4), "x": x, "y": y, "w": cw, "h": ch, "head": head})
     return frames

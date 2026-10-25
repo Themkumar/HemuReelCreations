@@ -43,6 +43,10 @@ def cmd_doctor(cfg, a):
         line(features.check("raqm"), "Pillow can shape Telugu/Indic text for graphics (libraqm)  [brew install libraqm]")
     except Exception:
         pass
+    import platform as _pf
+    if _pf.system() == "Darwin":
+        from . import matte as _m
+        line(_m._vision_binary() is not None, "Apple Vision person cut-out (Swift helper)  [xcode-select --install]")
     fonts = cfg.path("paths.assets") / "fonts"
     for fam in ("NotoSansTelugu", "NotoSansDevanagari", "NotoSansTamil", "NotoSansKannada", "NotoSans"):
         line(any(fonts.glob(f"{fam}-*.ttf")), f"font {fam}")

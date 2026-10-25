@@ -201,9 +201,10 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
             out = layer * (1 - a) + base * a
         else:
             out = layer
-        for _, x0, y0, x1, y1 in boxes:  # QA: does a front-drawn element cover the face?
+        rend.draw_front(out)
+        for bid, x0, y0, x1, y1 in boxes:  # QA: does a front-drawn element cover the face?
             hx, hy, hs = head["x"], head["y"], head["size"] * 0.5
-            if mats is None and x0 < hx + hs and x1 > hx - hs and y0 < hy + hs and y1 > hy - hs:
+            if (mats is None or bid.endswith("!front")) and x0 < hx + hs and x1 > hx - hs and y0 < hy + hs and y1 > hy - hs:
                 overlap += 1
         out *= vig
         dx, dy = rend.shake(t)
@@ -329,7 +330,7 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     comp = composite(cfg, reel, rdir, W, H, fps, events, mres["engine"] != "none", preview, seed,
                      framing=(FW, FH, box) if (FW, FH) != (W, H) else None)
 
-    sfx_events = [{"t": e["t_in"], "kind": e["sfx_in"]} for e in events]
+    sfx_events = [x for e in events for x in (e.get("sfx") or [{"t": e["t_in"], "kind": e["sfx_in"]}])]
     sfx_events += [{"t": tr["t"], "kind": transitions.SFX[tr["name"]]} for tr in comp["transitions"]
                    if transitions.SFX.get(tr["name"])]
     if planlib.context_card_sec(reel):

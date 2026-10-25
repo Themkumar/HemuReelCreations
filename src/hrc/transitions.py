@@ -12,7 +12,7 @@ import numpy as np
 HALF = 5  # frames on each side of the cut
 
 SFX = {"zoom_punch": "hit", "whip_pan": "whoosh", "glitch": "glitch", "rgb_split": "swish",
-       "light_flash": "impact", "spin": "whoosh", "slide": "swish", "shape_wipe": "pop",
+       "light_flash": "shimmer", "spin": "whoosh", "slide": "swish", "shape_wipe": "swish",
        "film_burn": "riser", "hard": None}
 MOOD_WEIGHTS = {
     "energetic": {"zoom_punch": 3, "whip_pan": 3, "glitch": 2, "rgb_split": 2, "spin": 2, "light_flash": 1},

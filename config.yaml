@@ -90,7 +90,7 @@ reframe:
   portrait_top_band: 0.18    # portrait: video sits lower, top 18% is a soft band for graphics above the head
 
 matte:
-  engine: auto              # auto | rvm | mediapipe | none
+  engine: auto              # auto | vision | rvm | mediapipe | none  (auto = Apple Vision on a Mac)
   downsample: 0.4
   temporal_smooth: 0.6
 
@@ -107,7 +107,7 @@ audio:
   target_lufs: -14
   music_db: -20
   duck_ratio: 8
-  sfx_db: -6
+  sfx_db: -8
   speech_cleanup: true
 
 export:

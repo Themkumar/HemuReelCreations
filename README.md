@@ -83,3 +83,17 @@ The default format is `reel`. It is a 9:16 frame:
 At key moments, a **photo replaces the wall behind the speaker**. Big stacked words appear beside them: white, with the `*key word*` large and red. Photos (JPG) become backgrounds by default. Icons and logos (PNG/SVG) float as pictures. You can force either with `style: backdrop` or `style: sprite` on a visual moment.
 
 Other formats are still available: `hrc render --formats landscape` gives a plain 16:9 file, and `--formats portrait` gives the face-tracked 9:16 crop.
+
+## Cinematic polish (v0.4)
+
+- **No opening hook card** by default. A reel can opt back in with `"show_context_card": true`.
+- **Text animations** (set `anim:` on a visual moment, or let HRC choose):
+  - `typewriter`: letters type in with a cursor and key clicks, in the Special Elite font
+  - `glitch`: RGB split and torn slices, with a soft digital stutter
+  - `fade`: fades up and rises, with a shimmer
+  - `zoom`: settles in like a camera push
+  - `slide`: moves in from the side
+  Every element fades out.
+- **Money counters**: `value: "₹1,50,000"`, `"$3000"` or `"€1,200"` counts up with ticks and a chime. Currency symbols drift up behind it, and ₹ amounts use Indian digit grouping.
+- **SFX**: rebuilt cinematic library (soft whooshes, deep booms, typewriter keys, money ticks, shimmer, gentle glitches). Each sound is matched to its animation and mixed lower. Your own files in `assets/sfx/<type>/` still win.
+- **Apple Vision cut-out**: on a Mac, `matte.engine: auto` compiles a small Swift helper (`src/hrc/vision_matte.swift`) on first use and uses Apple's person segmentation at accurate quality. It falls back to RVM if the helper can't be built.
