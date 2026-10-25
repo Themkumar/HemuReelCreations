@@ -75,6 +75,8 @@ def snap_to_words(t: float, words: list[dict], side: str) -> float:
     """Move a cut to the nearest gap between words so we never cut mid-word."""
     best, best_d = t, 1e9
     for a, b in zip(words, words[1:]):
+        if a["end"] <= t <= b["start"]:
+            return round(t, 3)       # already between two words: keep the editor's choice
         gap_mid = (a["end"] + b["start"]) / 2
         d = abs(gap_mid - t)
         if d < best_d:

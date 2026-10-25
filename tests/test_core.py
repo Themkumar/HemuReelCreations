@@ -161,3 +161,12 @@ def test_resolve_unmix_recovers_transparency():
     out = unmix(blk, wht)
     assert abs(int(out[0, 0, 3]) - 102) <= 1
     assert np.allclose(out[0, 0, :3], col, atol=2)
+
+
+def test_snap_keeps_cut_already_between_words():
+    from hrc.plan import snap_to_words
+    words = [{"start": 0.0, "end": 1.0}, {"start": 5.0, "end": 5.4}, {"start": 5.45, "end": 6.0}]
+    # 4.9 sits in the long pause before word 2: keep it, don't jump into word 2
+    assert snap_to_words(4.9, words, "start") == 4.9
+    # inside a word: move to the nearest gap
+    assert snap_to_words(5.3, words, "end") == 5.425
