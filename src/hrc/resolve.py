@@ -121,6 +121,10 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
             continue
         rend = gfx.GfxRenderer([ev], bw, bh, fps, colors, info.get("seed", 0))
         rend.particles = _NoParticles()
+        photo = None
+        if ev.get("file") and ev["type"] in ("image", "broll") and rend._wants_backdrop(ev):
+            photo = _photo_layers(cfg, ev, rend, heads, media, box, FW, FH, f0, f1, fps)
+            rend.backdrop_mode = "skip"
         out = media / "gfx" / f"{ev['id']}.mov"
         out_p = media / "gfx" / f"{ev['id']}_person.mov"
         out_f = media / "gfx" / f"{ev['id']}_front.mov"
@@ -158,7 +162,9 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
         entry = {"id": ev["id"], "type": ev["type"], "anim": ev["anim"], "t_in": f0 / fps, "t_out": f1 / fps,
                  "text": ev.get("text"), "value": ev.get("value"), "style": ev.get("style"), "file": out.name,
                  "person": out_p.name if wr_p is not None else None, "front": None, "sound": ev.get("sound", False),
-                 "image": Path(ev["file"]).name if ev.get("file") else None}
+                 "image": Path(ev["file"]).name if ev.get("file") else None,
+                 "photo": photo["clip"] if photo else None, "photo_hd": photo["still"] if photo else None,
+                 "label": ev.get("label") or ev.get("text")}
         if front_frames:
             wf = _rgba_writer(out_f, FW, FH, fps)
             have = dict(front_frames)
@@ -170,6 +176,38 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
         clips.append(entry)
         log.info("  layer %s (%s, %s) %.2f-%.2fs", ev["id"], ev["type"], ev["anim"], entry["t_in"], entry["t_out"])
     return clips
+
+
+def _photo_layers(cfg, ev, rend, heads, media: Path, box, FW, FH, f0, f1, fps) -> dict:
+    """A photo background on its own: the rendered clip (look, slow push-in, fades) and an untouched
+    HD still at twice the timeline size, for grading or swapping in Resolve."""
+    bx, by, bw, bh = box
+    out = media / "gfx" / f"{ev['id']}_photo.mov"
+    wr = _rgba_writer(out, FW, FH, fps)
+    prend = gfx.GfxRenderer([ev], bw, bh, fps, ["#FFFFFF", "#FFFFFF"], 0)
+    prend.particles = _NoParticles()
+    prend.layouts = rend.layouts  # same layout (and the same photo) as the graphic itself
+    prend.backdrop_mode = "only"
+    for i in range(f0, f1):
+        head = heads[min(i, len(heads) - 1)]
+        blk = np.zeros((bh, bw, 3), np.float32)
+        wht = np.full((bh, bw, 3), 255.0, np.float32)
+        prend.draw_behind(blk, i / fps, head)
+        prend.draw_behind(wht, i / fps, head)
+        wr.stdin.write(_canvas_rgba(unmix(blk, wht), FW, FH, box).tobytes())
+    wr.stdin.close(); wr.wait()
+    src = Path(ev.get("original") or ev["file"])
+    flat = {"blur": 0, "dim": 0, "desaturate": 0, "vignette": 0, "tint": 0, "push_in": 0}
+    hd = gfx.backdrop_image(src, bw * 2, bh * 2, look=flat)
+    canvas = np.zeros((FH * 2, FW * 2, 4), np.uint8)
+    canvas[by * 2:by * 2 + bh * 2, bx * 2:bx * 2 + bw * 2, :3] = hd[:bh * 2, :bw * 2]
+    canvas[by * 2:by * 2 + bh * 2, bx * 2:bx * 2 + bw * 2, 3] = 255
+    still = media / "photos" / f"{ev['id']}_photo_hd.png"
+    still.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(still), cv2.cvtColor(canvas, cv2.COLOR_RGBA2BGRA))
+    full = media / "photos" / f"{ev['id']}_original{src.suffix.lower()}"
+    shutil.copy2(src, full)
+    return {"clip": out.name, "still": still.name}
 
 
 def _render_ass_alpha(ass: Path, fonts: Path, out: Path, FW: int, FH: int, fps: int, dur: float, still_at=None):
@@ -252,7 +290,7 @@ def build_pack(cfg, reel: dict, rdir: Path, lang: str) -> Path:
         marker.touch()
     for f in shared.rglob("*"):
         if f.is_file() and not f.name.startswith(".") and f.name != "gfx_layers.json":
-            dst = media / ("brand" if f.suffix == ".png" else "") / f.relative_to(shared)
+            dst = media / ("brand" if f.suffix == ".png" and f.parent == shared else "") / f.relative_to(shared)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, dst)
     clips = read_json(shared / "gfx_layers.json")
@@ -312,7 +350,7 @@ def _audio_len(p: Path) -> float:
         return 1.0
 
 
-def _title_xml(text: str, accent: str, latin: bool, font: str, size: int) -> tuple[str, str]:
+def _title_xml(text: str, accent: str, latin: bool, font: str, size: int, sid: str = "h") -> tuple[str, str]:
     """Headline as an FCPXML Basic Title: each starred word in the accent colour."""
     r, g, b = (int(accent.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
     parts, on = [], False
@@ -326,10 +364,10 @@ def _title_xml(text: str, accent: str, latin: bool, font: str, size: int) -> tup
         parts.append((word, on))
         if en:
             on = False
-    body = "".join(f'<text-style ref="ts{1 if c else 0}">{escape(wd)} </text-style>' for wd, c in parts)
-    defs = (f'<text-style-def id="ts0"><text-style font="{escape(font)}" fontSize="{size}" fontColor="1 1 1 1" '
+    body = "".join(f'<text-style ref="{sid}ts{1 if c else 0}">{escape(wd)} </text-style>' for wd, c in parts)
+    defs = (f'<text-style-def id="{sid}ts0"><text-style font="{escape(font)}" fontSize="{size}" fontColor="1 1 1 1" '
             f'alignment="center"/></text-style-def>'
-            f'<text-style-def id="ts1"><text-style font="{escape(font)}" fontSize="{size}" fontColor="{r:.3f} {g:.3f} {b:.3f} 1" '
+            f'<text-style-def id="{sid}ts1"><text-style font="{escape(font)}" fontSize="{size}" fontColor="{r:.3f} {g:.3f} {b:.3f} 1" '
             f'alignment="center"/></text-style-def>')
     return f"<text>{body.strip()}</text>", defs
 
@@ -341,13 +379,13 @@ def write_fcpxml(out: Path, reel, lang, FW, FH, fps, dur, content, segs, clips, 
 
     res, items, rid = [], [], [2]
 
-    def asset(path: Path, video=True, audio_=False, still=False, length: float | None = None) -> str:
+    def asset(path: Path, video=True, audio_=False, still=False, length: float | None = None, fmt: str = "") -> str:
         rid[0] += 1
         i = f"r{rid[0]}"
         dur_attr = "0s" if still else fr(length if length is not None else dur)
         a = f' hasAudio="1" audioSources="1" audioChannels="2" audioRate="48000"' if audio_ else ""
         res.append(f'<asset id="{i}" name="{escape(path.stem)}" start="0s" duration="{dur_attr}" '
-                   f'hasVideo="{1 if video else 0}"{a} format="{"r2" if still else "r1"}">'
+                   f'hasVideo="{1 if video else 0}"{a} format="{fmt or ("r2" if still else "r1")}">'
                    f'<media-rep kind="original-media" src="{escape(path.resolve().as_uri())}"/></asset>')
         return i
 
@@ -360,36 +398,60 @@ def write_fcpxml(out: Path, reel, lang, FW, FH, fps, dur, content, segs, clips, 
         o = asset(media / "outro.mp4", length=dur - content)
         items.append(f'<asset-clip ref="{o}" lane="1" offset="{fr(content)}" start="0s" duration="{fr(dur - content)}" '
                      f'name="Ending stamp"/>')
-    for c in clips:  # V2 graphics behind, V3 speaker cut-out, V4 graphic parts in front
+    accent = (cfg.at("project.brand_colors") or ["#FFD400", "#E8252B"])[1]
+    gfont = cfg.at("resolve.graphic_font", "Anton")
+    title_end: list[float] = []
+    for c in clips:  # V2-V6: photo, photo HD still, graphic, speaker cut-out, front parts
         d = c["t_out"] - c["t_in"]
+        label = (c.get("text") or c["type"]).replace("*", "")
+        if c.get("photo"):
+            ph = asset(media / "gfx" / c["photo"], length=d)
+            items.append(f'<asset-clip ref="{ph}" lane="2" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+                         f'name="{escape(c["id"])} photo"/>')
+        if c.get("photo_hd"):
+            hd = asset(media / "photos" / c["photo_hd"], still=True, fmt="r3")
+            items.append(f'<video ref="{hd}" lane="3" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+                         f'enabled="0" name="{escape(c["id"])} photo HD still (off)"/>')
         g = asset(media / "gfx" / c["file"], length=d)
-        items.append(f'<asset-clip ref="{g}" lane="2" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
-                     f'name="{escape(c["id"] + " " + (c.get("text") or c["type"]).replace("*", ""))}"/>')
+        items.append(f'<asset-clip ref="{g}" lane="4" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+                     f'name="{escape(c["id"] + " " + label)}"/>')
         if c.get("person"):
             p = asset(media / "gfx" / c["person"], length=d)
-            items.append(f'<asset-clip ref="{p}" lane="3" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
-                         f'name="{c["id"]} speaker cut-out"/>')
+            items.append(f'<asset-clip ref="{p}" lane="5" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+                         f'name="{c["id"]} cut-out (you + objects in front)"/>')
         if c.get("front"):
             f_ = asset(media / "gfx" / c["front"], length=d)
-            items.append(f'<asset-clip ref="{f_}" lane="4" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+            items.append(f'<asset-clip ref="{f_}" lane="6" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
                          f'name="{c["id"]} front"/>')
+        words = " ".join(str(x) for x in (c.get("value"), c.get("label")) if x)
+        if words:
+            tl = next((k for k, e in enumerate(title_end) if e <= c["t_in"]), None)
+            if tl is None:
+                title_end.append(c["t_out"]); tl = len(title_end) - 1
+            else:
+                title_end[tl] = c["t_out"]
+            latin = not any(0x0900 <= ord(ch) <= 0x0DFF for ch in words)  # no Indian script letters
+            text, defs = _title_xml(words, accent, latin, gfont if latin else
+                                    cfg.at(f"subtitles.fonts.{lang}", "Noto Sans"),
+                                    int(cfg.at("resolve.graphic_size", 96)), f"g{c['id']}")
+            items.append(f'<title ref="r9" lane="{11 + tl}" offset="{fr(c["t_in"])}" start="0s" duration="{fr(d)}" '
+                         f'enabled="0" name="{escape(c["id"])} text (editable, off)">{text}{defs}</title>')
     if (media / "brand" / "logo.png").exists():
         lg = asset(media / "brand" / "logo.png", still=True)
-        items.append(f'<video ref="{lg}" lane="5" offset="0s" start="0s" duration="{fr(content)}" name="Corner logo"/>')
+        items.append(f'<video ref="{lg}" lane="7" offset="0s" start="0s" duration="{fr(content)}" name="Corner logo"/>')
     if head_png is not None:
         hp = asset(head_png, still=True)
-        items.append(f'<video ref="{hp}" lane="6" offset="0s" start="0s" duration="{fr(content)}" name="Headline (picture)"/>')
+        items.append(f'<video ref="{hp}" lane="8" offset="0s" start="0s" duration="{fr(content)}" name="Headline (picture)"/>')
     if headline:
         latin = lang == "en"
         font = "Anton" if latin else cfg.at(f"subtitles.fonts.{lang}", "Noto Sans")
-        accent = (cfg.at("project.brand_colors") or ["#FFD400", "#E8252B"])[1]
         text, defs = _title_xml(headline, accent, latin, font, int(cfg.at("layout.reel.headline_size", 124) * 0.6))
-        items.append(f'<title ref="r9" lane="7" offset="0s" start="0s" duration="{fr(content)}" enabled="0" '
+        items.append(f'<title ref="r9" lane="9" offset="0s" start="0s" duration="{fr(content)}" enabled="0" '
                      f'name="Headline (editable text, off)">{text}{defs}</title>')
     cap = media / f"captions_{lang}.mov"
     if cap.exists():
         cp = asset(cap, length=content)
-        items.append(f'<asset-clip ref="{cp}" lane="8" offset="0s" start="0s" duration="{fr(content)}" '
+        items.append(f'<asset-clip ref="{cp}" lane="10" offset="0s" start="0s" duration="{fr(content)}" '
                      f'name="Karaoke captions {lang}"/>')
     # audio
     sp = asset(stems["speech"], video=False, audio_=True)
@@ -418,6 +480,7 @@ def write_fcpxml(out: Path, reel, lang, FW, FH, fps, dur, content, segs, clips, 
   <resources>
     <format id="r1" name="FFVideoFormatRateUndefined" frameDuration="1/{fps}s" width="{FW}" height="{FH}"/>
     <format id="r2" name="FFVideoFormatRateUndefined" width="{FW}" height="{FH}"/>
+    <format id="r3" name="FFVideoFormatRateUndefined" width="{FW * 2}" height="{FH * 2}"/>
     <effect id="r9" name="Basic Title" uid=".../Titles.localized/Bumper:Opener.localized/Basic Title.localized/Basic Title.moti"/>
     {chr(10).join('    ' + r for r in res)}
   </resources>
@@ -448,20 +511,23 @@ def write_sheet(out: Path, reel, lang, info, clips, sfx_clips, segs, names, head
          f"**{reel.get('title', '')}** · {dur:.1f} s · 1080x1920 · {cfg.at('reel.fps', 30)} fps", "",
          "## Tracks in Resolve", "",
          "| Track | What it is | How to change it |", "|---|---|---|",
-         "| V1 | Podcast video, cut at each join, then the ending stamp | Trim, reorder, add a Resolve transition on an edit point (markers suggest one) |",
-         "| V2 | Each graphic alone (transparent) | Move, scale, retime, change opacity, delete, or swap the clip |",
-         "| V3 | The speaker cut out, only while a graphic sits behind him | Delete it to put that graphic in front of the speaker |",
-         "| V4 | Parts of a graphic that sit in front of the speaker (counters) | Same as V2 |",
-         "| V5 | Corner logo (still) | Move, scale or turn off |",
-         "| V6 | Headline above the video (picture) | Turn off and turn on V7 to edit the words, font and colour in Resolve |",
-         "| V7 | Headline as Resolve text (off) | Select, turn on (D key), edit in the Inspector |",
-         "| V8 | Karaoke captions (transparent) | Move or turn off; for a Resolve subtitle track import the .srt |",
+         "| V1 | Podcast video, cut at each join, then the ending stamp | Trim, reorder, add a Resolve transition on an edit point (markers suggest one), grade |",
+         "| V2 | Photo backgrounds, rendered (look, slow push-in, fades) | Grade it on the Color page, retime, change opacity, delete |",
+         "| V3 | Same photo as an untouched HD still, **off** | Turn on (D), turn V2 off: then grade, zoom or reframe it freely in the Inspector |",
+         "| V4 | Each graphic alone (text, counters, pictures), transparent | Move, scale, retime, change opacity, delete, or swap the clip |",
+         "| V5 | You cut out, with the mic, cups and other objects in front, only while a graphic is behind you | Delete one to put that graphic in front of you |",
+         "| V6 | Parts of a graphic that sit in front of you (counters) | Same as V4 |",
+         "| V7 | Corner logo (still) | Move, scale or turn off |",
+         "| V8 | Headline above the video (picture) | Turn off and turn on V9 to edit the words, font and colour in Resolve |",
+         "| V9 | Headline as Resolve text, **off** | Select, turn on (D key), edit in the Inspector |",
+         "| V10 | Karaoke captions (transparent) | Move or turn off; for a Resolve subtitle track import the .srt |",
+         "| V11+ | Every graphic's words as Resolve text, **off** | Turn on (D) and turn off its V4 clip: then change words, font, size, colour and add any Resolve title animation |",
          "| A1 | Speech (cleaned) | Levels, EQ |", "| A2 | Music (ducked under speech) | Levels, swap the song |",
          "| A3+ | One clip per sound effect | Move, change volume, delete, swap |", "",
          "## Style used", "",
          f"- Highlight colour (active word, graphics): `{colors[0]}`. Accent colour (headline key words, key words): `{colors[1]}`.",
          f"- Caption font: {font_cap}. Headline font: {'Anton' if lang == 'en' else font_cap} (bold).",
-         "- Graphic text font: Anton (typewriter style: Special Elite).",
+         "- Graphic text font: Anton (typewriter style: Special Elite). Original photos at full size are in media/photos/.",
          "- To change fonts or colours in the baked layers, edit config.yaml and run `hrc resolve --reel "
          f"{reel['id']} --lang {lang}` (about a minute).", "",
          f"## Headline\n\n`{headline}` (words between `*` use the accent colour)", "",

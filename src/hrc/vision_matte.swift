@@ -1,7 +1,11 @@
 // Apple Vision person cut-out for HRC (macOS 12+, Apple Silicon Neural Engine).
 // Reads raw RGB24 frames (W x H) on stdin. For each frame, writes a header of two little-endian
 // UInt32 values (mask width, mask height), then the 8-bit mask rows (0 = background, 255 = person).
-// Usage: vision_matte <W> <H> [accurate|balanced|fast]
+// Usage: vision_matte <W> <H> [accurate|balanced|fast] [objects]
+// With "objects" (macOS 14+), each frame also gets two more blocks, each with the same header:
+//   the soft mask of every foreground object Vision finds (mic, cups, bottles, people...) at W x H,
+//   then the instance label map (0 = background, 1..N = object number) at Vision's own size.
+// A block with width 0 means "nothing found" (or not supported on this macOS).
 import CoreVideo
 import Foundation
 import Vision
@@ -12,6 +16,7 @@ guard args.count >= 3, let W = Int(args[1]), let H = Int(args[2]) else {
     exit(1)
 }
 let quality = args.count > 3 ? args[3] : "accurate"
+let wantObjects = args.count > 4 && args[4] == "objects"
 let frameBytes = W * H * 3
 let input = FileHandle.standardInput
 let output = FileHandle.standardOutput
@@ -33,6 +38,14 @@ func readExactly(_ n: Int) -> Data? {
         data.append(chunk)
     }
     return data
+}
+
+func writeBlock(_ w: UInt32, _ h: UInt32, _ data: Data) {
+    var header = Data()
+    withUnsafeBytes(of: w.littleEndian) { header.append(contentsOf: $0) }
+    withUnsafeBytes(of: h.littleEndian) { header.append(contentsOf: $0) }
+    output.write(header)
+    if w > 0 { output.write(data) }
 }
 
 var pixelBuffer: CVPixelBuffer?
@@ -75,9 +88,54 @@ while let frame = readExactly(frameBytes) {
     } catch {
         FileHandle.standardError.write("vision error: \(error)\n".data(using: .utf8)!)
     }
-    var header = Data()
-    withUnsafeBytes(of: mw.littleEndian) { header.append(contentsOf: $0) }
-    withUnsafeBytes(of: mh.littleEndian) { header.append(contentsOf: $0) }
-    output.write(header)
-    if mw > 0 { output.write(maskData) }
+    writeBlock(mw, mh, maskData)
+    if wantObjects {
+        var ow: UInt32 = 0, oh: UInt32 = 0, lw: UInt32 = 0, lh: UInt32 = 0
+        var soft = Data(), labels = Data()
+        if #available(macOS 14.0, *) {
+            let objReq = VNGenerateForegroundInstanceMaskRequest()
+            let ih = VNImageRequestHandler(cvPixelBuffer: buf, options: [:])
+            do {
+                try ih.perform([objReq])
+                if let obs = objReq.results?.first, !obs.allInstances.isEmpty {
+                    let scaled = try obs.generateScaledMaskForImage(forInstances: obs.allInstances, from: ih)
+                    CVPixelBufferLockBaseAddress(scaled, .readOnly)
+                    let w = CVPixelBufferGetWidth(scaled), h = CVPixelBufferGetHeight(scaled)
+                    let sbpr = CVPixelBufferGetBytesPerRow(scaled)
+                    let fmt = CVPixelBufferGetPixelFormatType(scaled)
+                    let base = CVPixelBufferGetBaseAddress(scaled)!
+                    var bytes = [UInt8](repeating: 0, count: w * h)
+                    for y in 0..<h {
+                        let row = base + y * sbpr
+                        if fmt == kCVPixelFormatType_OneComponent32Float {
+                            let f = row.assumingMemoryBound(to: Float32.self)
+                            for x in 0..<w {
+                                let v = f[x] * 255
+                                bytes[y * w + x] = v <= 0 ? 0 : (v >= 255 ? 255 : UInt8(v))
+                            }
+                        } else {
+                            let b = row.assumingMemoryBound(to: UInt8.self)
+                            for x in 0..<w { bytes[y * w + x] = b[x] }
+                        }
+                    }
+                    soft = Data(bytes)
+                    CVPixelBufferUnlockBaseAddress(scaled, .readOnly)
+                    ow = UInt32(w); oh = UInt32(h)
+                    let lab = obs.instanceMask
+                    CVPixelBufferLockBaseAddress(lab, .readOnly)
+                    let w2 = CVPixelBufferGetWidth(lab), h2 = CVPixelBufferGetHeight(lab)
+                    let lbpr = CVPixelBufferGetBytesPerRow(lab)
+                    let lbase = CVPixelBufferGetBaseAddress(lab)!.assumingMemoryBound(to: UInt8.self)
+                    labels.reserveCapacity(w2 * h2)
+                    for y in 0..<h2 { labels.append(lbase + y * lbpr, count: w2) }
+                    CVPixelBufferUnlockBaseAddress(lab, .readOnly)
+                    lw = UInt32(w2); lh = UInt32(h2)
+                }
+            } catch {
+                FileHandle.standardError.write("vision objects error: \(error)\n".data(using: .utf8)!)
+            }
+        }
+        writeBlock(ow, oh, soft)
+        writeBlock(lw, lh, labels)
+    }
 }

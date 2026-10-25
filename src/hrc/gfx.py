@@ -358,6 +358,7 @@ class GfxRenderer:
         self.layouts: dict[str, dict] = {}
         self.rng = np.random.default_rng(seed)
         self.shake_px = 3.0 * min(W, H) / 1080
+        self.backdrop_mode = "all"  # "skip": no photo backgrounds; "only": photo backgrounds alone (Resolve layers)
 
     def _sprite(self, ev: dict, head: dict) -> np.ndarray:
         if ev["id"] in self.sprites:
@@ -559,17 +560,19 @@ class GfxRenderer:
                 spr = glitch_fx(spr, self.rng, 1.0 if local < 0.35 else 0.5)
             sh, sw = spr.shape[0] * scale, spr.shape[1] * scale
             num_cy = None
-            if lay.get("backdrop") is not None:  # the picture replaces the wall behind the speaker
+            if lay.get("backdrop") is not None and self.backdrop_mode != "skip":  # the picture replaces the wall
                 a_bd = clamp01(local / 0.3) * clamp01(out_left / 0.25)
                 bd = lay["backdrop"]
-                z = 1.0 + 0.05 * clamp01(local / max(0.5, ev["t_out"] - ev["t_in"]))  # slow push-in
+                z = 1.0 + BACKDROP["push_in"] * clamp01(local / max(0.5, ev["t_out"] - ev["t_in"]))  # slow push-in
                 bh, bw = bd.shape[:2]
                 ch_, cw_ = int(bh / z), int(bw / z)
                 y0, x0 = (bh - ch_) // 2, (bw - cw_) // 2
                 crop = bd[y0:y0 + ch_, x0:x0 + cw_]
-                frame_bd = cv2.resize(crop, (self.W, self.H), interpolation=cv2.INTER_LINEAR).astype(np.float32)
+                frame_bd = cv2.resize(crop, (self.W, self.H), interpolation=cv2.INTER_AREA).astype(np.float32)
                 layer *= (1 - a_bd)
                 layer += frame_bd * a_bd
+            if self.backdrop_mode == "only":
+                continue
             if lay["mode"] == "side":
                 bob = math.sin(local * 2.0) * self.U * 0.004
                 cx, cy = lay["cx"], lay["cy"] + bob
@@ -747,23 +750,36 @@ def _row(left: np.ndarray, right: np.ndarray, gap: int = 18) -> np.ndarray:
     return out
 
 
-def backdrop_image(path: Path, W: int, H: int, tint=(232, 37, 43)) -> np.ndarray:
-    """A photo filling the frame behind the speaker: cover-cropped, softly blurred and darkened so the
-    speaker and the big words stay the hero (the look of big podcast-clip channels)."""
-    img = np.asarray(Image.open(path).convert("RGB")).astype(np.float32)
+BACKDROP = {"blur": 0.0, "dim": 0.22, "desaturate": 0.1, "vignette": 0.3, "tint": 0.03, "push_in": 0.05}
+
+
+def backdrop_image(path: Path, W: int, H: int, tint=(232, 37, 43), look: dict | None = None) -> np.ndarray:
+    """A photo filling the frame behind the speaker, cover-cropped with Lanczos so it stays sharp.
+    The look (blur, dim, desaturate, vignette, tint) comes from config `gfx.backdrop`; the default is a
+    crisp photo, only a little darker so the speaker and the big words stay the hero."""
+    lk = {**BACKDROP, **(look or {})}
+    pad = 1.0 + float(lk["push_in"]) + 0.01
+    img = np.asarray(Image.open(path).convert("RGB"))
     h, w = img.shape[:2]
-    s = max(W * 1.06 / w, H * 1.06 / h)
-    img = cv2.resize(img, (max(W, int(w * s)), max(H, int(h * s))), interpolation=cv2.INTER_CUBIC)
+    s = max(W * pad / w, H * pad / h)
+    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_LANCZOS4
+    img = cv2.resize(img, (max(int(W * pad), int(round(w * s))), max(int(H * pad), int(round(h * s)))),
+                     interpolation=interp).astype(np.float32)
     h, w = img.shape[:2]
-    y0, x0 = (h - int(H * 1.06)) // 2, (w - int(W * 1.06)) // 2
-    img = img[max(0, y0):max(0, y0) + int(H * 1.06), max(0, x0):max(0, x0) + int(W * 1.06)]
-    img = cv2.GaussianBlur(img, (0, 0), max(3.0, min(W, H) / 130))
-    lum = img.mean(axis=2, keepdims=True)
-    img = img * 0.55 + lum * 0.15  # a little desaturated
-    img = img * 0.5 + np.array(tint, np.float32)[None, None] * 0.05  # darker, faint brand tint
-    yy, xx = np.ogrid[:img.shape[0], :img.shape[1]]
-    v = 1 - 0.45 * (((xx - img.shape[1] / 2) / (img.shape[1] / 2)) ** 2 + ((yy - img.shape[0] / 2) / (img.shape[0] / 2)) ** 2) / 2
-    return np.clip(img * v[..., None], 0, 255).astype(np.uint8)
+    th, tw = int(H * pad), int(W * pad)
+    y0, x0 = (h - th) // 2, (w - tw) // 2
+    img = img[max(0, y0):max(0, y0) + th, max(0, x0):max(0, x0) + tw]
+    if lk["blur"] > 0:
+        img = cv2.GaussianBlur(img, (0, 0), float(lk["blur"]) * min(W, H) / 1080)
+    if lk["desaturate"] > 0:
+        lum = img.mean(axis=2, keepdims=True)
+        img = img * (1 - lk["desaturate"]) + lum * lk["desaturate"]
+    img = img * (1 - lk["dim"]) * (1 - lk["tint"]) + np.array(tint, np.float32)[None, None] * lk["tint"]
+    if lk["vignette"] > 0:
+        yy, xx = np.ogrid[:img.shape[0], :img.shape[1]]
+        r2 = (((xx - img.shape[1] / 2) / (img.shape[1] / 2)) ** 2 + ((yy - img.shape[0] / 2) / (img.shape[0] / 2)) ** 2) / 2
+        img = img * (1 - lk["vignette"] * r2)[..., None]
+    return np.clip(img, 0, 255).astype(np.uint8)
 
 
 def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43), typewriter: bool = False,

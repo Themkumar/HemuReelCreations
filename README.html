@@ -1,0 +1,416 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>HRC Guide</title>
+<style>
+:root{--bg:#fff;--fg:#1d1f24;--muted:#5d6370;--line:#e3e5ea;--code:#f3f4f6;--accent:#E8252B;--hl:#FFD400}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e8e9ec;--muted:#9aa0ab;--line:#2a2d35;--code:#1a1d23}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:980px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:34px;line-height:1.2;margin:0 0 8px;border-bottom:4px solid var(--hl);padding-bottom:10px}
+h2{font-size:24px;margin:48px 0 12px;padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:18px;margin:28px 0 8px}
+img{max-width:100%;height:auto;display:block;margin:16px auto;border-radius:14px}
+table{border-collapse:collapse;width:100%;margin:12px 0 20px;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--code)}tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 45%,transparent)}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font-size:.92em}
+pre{background:var(--code);padding:14px 16px;border-radius:10px;overflow-x:auto}pre code{padding:0;background:none}
+td:first-child{font-weight:700;white-space:nowrap}
+hr{border:0;border-top:1px solid var(--line);margin:36px 0}
+@media print{body{font-size:12px}h2{break-before:auto}img{max-width:80%}}
+</style></head><body><main><h1>HemuReelCreations (HRC)</h1>
+<p>Turns a finished Telugu episode of <strong>The Hemu Mark Reality Check</strong> into ten 9:16 reels (1080x1920,
+30 fps, at most 60 s each). Every reel is exported with karaoke captions in <strong>Telugu, Hindi,
+English, Tamil and Kannada</strong>, plus a <strong>layered DaVinci Resolve project</strong> in which every graphic,
+caption, logo and sound sits on its own track. The audio always stays Telugu.</p>
+<p><img alt="What a reel looks like" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MDAiIGhlaWdodD0iNzg2IiB2aWV3Qm94PSIwIDAgODAwIDc4NiIgZm9udC1mYW1pbHk9IkhlbHZldGljYSwgQXJpYWwsIHNhbnMtc2VyaWYiPgo8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9Ijc4NiIgcng9IjE4IiBmaWxsPSIjMEYxMTE1Ii8+CjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIwLDIwKSI+PHJlY3Qgd2lkdGg9IjQyMCIgaGVpZ2h0PSI3NDYiIHJ4PSIxNCIgZmlsbD0iIzAwMCIgc3Ryb2tlPSIjMzMzIi8+Cjx0ZXh0IHg9IjIxMC4wIiB5PSIxMjQuNjY2NjY2NjY2NjY2NjYiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMzAiIGZvbnQtd2VpZ2h0PSI5MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJJbXBhY3QsIEFudG9uLCBzYW5zLXNlcmlmIj4zMDAwIDx0c3BhbiBmaWxsPSIjRTgyNTJCIj5SRUpFQ1RJT05TPC90c3Bhbj48L3RleHQ+Cjx0ZXh0IHg9IjIxMC4wIiB5PSIxNjAuNjY2NjY2NjY2NjY2NjYiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMzAiIGZvbnQtd2VpZ2h0PSI5MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJJbXBhY3QsIEFudG9uLCBzYW5zLXNlcmlmIj5JTiBJVEFMWTwvdGV4dD4KPHJlY3QgeD0iMCIgeT0iMTg2LjY2NjY2NjY2NjY2NjY2IiB3aWR0aD0iNDIwIiBoZWlnaHQ9IjMwMC4yMjIyMjIyMjIyMjIyMyIgZmlsbD0iIzNCNDI1MiIvPgo8cmVjdCB4PSIwIiB5PSIxODYuNjY2NjY2NjY2NjY2NjYiIHdpZHRoPSIyMzEuMDAwMDAwMDAwMDAwMDMiIGhlaWdodD0iMzAwLjIyMjIyMjIyMjIyMjIzIiBmaWxsPSIjNkI1QjNFIiBvcGFjaXR5PSIwLjgiLz4KPHRleHQgeD0iODQuMCIgeT0iMzIxLjc2NjY2NjY2NjY2NjY1IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjM0IiBmb250LXdlaWdodD0iOTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iSW1wYWN0LCBBbnRvbiwgc2Fucy1zZXJpZiI+MywwMDA8L3RleHQ+Cjx0ZXh0IHg9Ijg0LjAiIHk9IjM0NS43NjY2NjY2NjY2NjY2NSIgZmlsbD0iI0ZGRDQwMCIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UkVKRUNUSU9OUzwvdGV4dD4KPGNpcmNsZSBjeD0iMjYwLjQiIGN5PSIzMDAuNzUxMTExMTExMTExMSIgcj0iNDAiIGZpbGw9IiNEOUE0N0EiLz48cmVjdCB4PSIxOTAuMzk5OTk5OTk5OTk5OTgiIHk9IjM1MS43ODg4ODg4ODg4ODg5IiB3aWR0aD0iMTQwIiBoZWlnaHQ9IjEzNS4xIiByeD0iMzAiIGZpbGw9IiMyNTMyNEEiLz4KPGNpcmNsZSBjeD0iMzg2IiBjeT0iMjIwLjY2NjY2NjY2NjY2NjY2IiByPSIyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiLz48dGV4dCB4PSIzODYiIHk9IjIyNC42NjY2NjY2NjY2NjY2NiIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSI4IiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IRU1VPC90ZXh0Pgo8dGV4dCB4PSIyMTAuMCIgeT0iNTM4Ljg4ODg4ODg4ODg4ODkiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMjYiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuCwsOCwv+CwnOCxhuCwleCxjeCwt+CwqOCxjSA8dHNwYW4gZmlsbD0iI0ZGRDQwMCI+4LCr4LGL4LCy4LGN4LCh4LCw4LGNPC90c3Bhbj48L3RleHQ+CjwvZz4KPGxpbmUgeDE9IjQ0NCIgeTE9IjE1Ni42NjY2NjY2NjY2NjY2NiIgeDI9IjQ4MCIgeTI9IjE1Ni42NjY2NjY2NjY2NjY2NiIgc3Ryb2tlPSIjRTgyNTJCIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI0NDQiIGN5PSIxNTYuNjY2NjY2NjY2NjY2NjYiIHI9IjQiIGZpbGw9IiNFODI1MkIiLz4KPHRleHQgeD0iNDkwIiB5PSIxNTQuNjY2NjY2NjY2NjY2NjYiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI3MDAiPkhlYWRsaW5lIGJhcjwvdGV4dD48dGV4dCB4PSI0OTAiIHk9IjE3My42NjY2NjY2NjY2NjY2NiIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxMyI+d2hpdGUgKyByZWQga2V5IHdvcmRzIChBbnRvbiAvIE5vdG8gQm9sZCk8L3RleHQ+CjxsaW5lIHgxPSI0NDQiIHkxPSIyNDAuNjY2NjY2NjY2NjY2NjYiIHgyPSI0ODAiIHkyPSIyNDAuNjY2NjY2NjY2NjY2NjYiIHN0cm9rZT0iI0U4MjUyQiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iNDQ0IiBjeT0iMjQwLjY2NjY2NjY2NjY2NjY2IiByPSI0IiBmaWxsPSIjRTgyNTJCIi8+Cjx0ZXh0IHg9IjQ5MCIgeT0iMjM4LjY2NjY2NjY2NjY2NjY2IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iNzAwIj5Db3JuZXIgbG9nbzwvdGV4dD48dGV4dCB4PSI0OTAiIHk9IjI1Ny42NjY2NjY2NjY2NjY2MyIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxMyI+eW91ciBzdGFtcCwgd2hpdGU8L3RleHQ+CjxsaW5lIHgxPSI0NDQiIHkxPSIzMzIuNzYiIHgyPSI0ODAiIHkyPSIzMzIuNzYiIHN0cm9rZT0iI0U4MjUyQiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iNDQ0IiBjeT0iMzMyLjc2IiByPSI0IiBmaWxsPSIjRTgyNTJCIi8+Cjx0ZXh0IHg9IjQ5MCIgeT0iMzMwLjc2IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iNzAwIj5HcmFwaGljIGJlaGluZCB0aGUgc3BlYWtlcjwvdGV4dD48dGV4dCB4PSI0OTAiIHk9IjM0OS43NiIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxMyI+cGhvdG8gYmFja2Ryb3AsIGNvdW50ZXJzLCBzdGFja2VkIHdvcmRzPC90ZXh0Pgo8bGluZSB4MT0iNDQ0IiB5MT0iNDMxLjgzMzMzMzMzMzMzMzM3IiB4Mj0iNDgwIiB5Mj0iNDMxLjgzMzMzMzMzMzMzMzM3IiBzdHJva2U9IiNFODI1MkIiIHN0cm9rZS13aWR0aD0iMiIvPjxjaXJjbGUgY3g9IjQ0NCIgY3k9IjQzMS44MzMzMzMzMzMzMzMzNyIgcj0iNCIgZmlsbD0iI0U4MjUyQiIvPgo8dGV4dCB4PSI0OTAiIHk9IjQyOS44MzMzMzMzMzMzMzMzNyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNiIgZm9udC13ZWlnaHQ9IjcwMCI+VmlkZW8gYm94PC90ZXh0Pjx0ZXh0IHg9IjQ5MCIgeT0iNDQ4LjgzMzMzMzMzMzMzMzM3IiBmaWxsPSIjQUFCIiBmb250LXNpemU9IjEzIj5sYW5kc2NhcGUgcG9kY2FzdCwgc3RlYWR5IGZyYW1pbmc8L3RleHQ+CjxsaW5lIHgxPSI0NDQiIHkxPSI1NTIuODg4ODg4ODg4ODg4OSIgeDI9IjQ4MCIgeTI9IjU1Mi44ODg4ODg4ODg4ODg5IiBzdHJva2U9IiNFODI1MkIiIHN0cm9rZS13aWR0aD0iMiIvPjxjaXJjbGUgY3g9IjQ0NCIgY3k9IjU1Mi44ODg4ODg4ODg4ODg5IiByPSI0IiBmaWxsPSIjRTgyNTJCIi8+Cjx0ZXh0IHg9IjQ5MCIgeT0iNTUwLjg4ODg4ODg4ODg4ODkiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI3MDAiPkthcmFva2UgY2FwdGlvbnM8L3RleHQ+PHRleHQgeD0iNDkwIiB5PSI1NjkuODg4ODg4ODg4ODg4OSIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxMyI+MS0yIGxpbmVzLCBhY3RpdmUgd29yZCBpbiB5ZWxsb3c8L3RleHQ+CjxsaW5lIHgxPSI0NDQiIHkxPSI3MDYiIHgyPSI0ODAiIHkyPSI3MDYiIHN0cm9rZT0iI0U4MjUyQiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iNDQ0IiBjeT0iNzA2IiByPSI0IiBmaWxsPSIjRTgyNTJCIi8+Cjx0ZXh0IHg9IjQ5MCIgeT0iNzA0IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iNzAwIj5FbmRpbmc8L3RleHQ+PHRleHQgeD0iNDkwIiB5PSI3MjMiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTMiPnN0YW1wIHNsYW1zIGluIHRoZSBjZW50cmUgKyBzdGFtcCBzb3VuZDwvdGV4dD4KPC9zdmc+" /></p>
+<hr />
+<h2>The whole process on one page</h2>
+<p><img alt="From podcast to finished reels" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MDAiIGhlaWdodD0iOTM0IiB2aWV3Qm94PSIwIDAgOTAwIDkzNCIgZm9udC1mYW1pbHk9IkhlbHZldGljYSwgQXJpYWwsIHNhbnMtc2VyaWYiPgo8cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9IjkzNCIgcng9IjE4IiBmaWxsPSIjMEYxMTE1Ii8+Cjx0ZXh0IHg9IjQwIiB5PSI1MiIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIyOCIgZm9udC13ZWlnaHQ9IjcwMCI+RnJvbSBwb2RjYXN0IHRvIGZpbmlzaGVkIHJlZWxzPC90ZXh0Pgo8ZyBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNzAwIj4KPHJlY3QgeD0iNTYwIiB5PSIzNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iNCIgZmlsbD0iI0U4MjUyQiIvPjx0ZXh0IHg9IjU4MiIgeT0iNDciIGZpbGw9IiNjY2MiPllvdTwvdGV4dD4KPHJlY3QgeD0iNjcwIiB5PSIzNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iNCIgZmlsbD0iIzFGNkZFQiIvPjx0ZXh0IHg9IjY5MiIgeT0iNDciIGZpbGw9IiNjY2MiPllvdXIgTWFjPC90ZXh0Pgo8cmVjdCB4PSI3ODAiIHk9IjM0IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHJ4PSI0IiBmaWxsPSIjODI1MERGIi8+PHRleHQgeD0iODAyIiB5PSI0NyIgZmlsbD0iI2NjYyI+Q2xhdWRlPC90ZXh0Pgo8L2c+CjxsaW5lIHgxPSI2NiIgeTE9IjEzMiIgeDI9IjY2IiB5Mj0iMTYyIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSI2NiIgY3k9IjExMCIgcj0iMjIiIGZpbGw9IiNFODI1MkIiLz48dGV4dCB4PSI2NiIgeT0iMTE3IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4xPC90ZXh0Pgo8cmVjdCB4PSIxMDQiIHk9Ijg0IiB3aWR0aD0iNzYwIiBoZWlnaHQ9IjU0IiByeD0iMTIiIGZpbGw9IiMxQTFEMjQiIHN0cm9rZT0iI0U4MjUyQiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIvPgo8dGV4dCB4PSIxMjQiIHk9IjEwNyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPlB1dCB0aGUgZXBpc29kZSBpbiBwbGFjZTwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSIxMjgiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPlZpZGVvIGluIE1hc3RlciBjb3B5LCBTUlQgaW4gU1VidGl0bGVzX1NydCwgcGF0aHMgaW4gY29uZmlnLnlhbWw8L3RleHQ+Cjx0ZXh0IHg9Ijg0OCIgeT0iMTA3IiBmaWxsPSIjRTgyNTJCIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5ZT1U8L3RleHQ+CjxsaW5lIHgxPSI2NiIgeTE9IjIwNiIgeDI9IjY2IiB5Mj0iMjM2IiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSI2NiIgY3k9IjE4NCIgcj0iMjIiIGZpbGw9IiMxRjZGRUIiLz48dGV4dCB4PSI2NiIgeT0iMTkxIiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4yPC90ZXh0Pgo8cmVjdCB4PSIxMDQiIHk9IjE1OCIgd2lkdGg9Ijc2MCIgaGVpZ2h0PSI1NCIgcng9IjEyIiBmaWxsPSIjMUExRDI0IiBzdHJva2U9IiMxRjZGRUIiIHN0cm9rZS1vcGFjaXR5PSIwLjUiLz4KPHRleHQgeD0iMTI0IiB5PSIxODEiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5ocmMgaW5nZXN0PC90ZXh0Pgo8dGV4dCB4PSIxMjQiIHk9IjIwMiIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxNCI+UmVhZHMgc3VidGl0bGVzLCBmaW5kcyBjYW1lcmEgY2hhbmdlcyBhbmQgZmFjZXM8L3RleHQ+Cjx0ZXh0IHg9Ijg0OCIgeT0iMTgxIiBmaWxsPSIjMUY2RkVCIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5ZT1VSIE1BQzwvdGV4dD4KPGxpbmUgeDE9IjY2IiB5MT0iMjgwIiB4Mj0iNjYiIHkyPSIzMTAiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxjaXJjbGUgY3g9IjY2IiBjeT0iMjU4IiByPSIyMiIgZmlsbD0iIzFGNkZFQiIvPjx0ZXh0IHg9IjY2IiB5PSIyNjUiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjM8L3RleHQ+CjxyZWN0IHg9IjEwNCIgeT0iMjMyIiB3aWR0aD0iNzYwIiBoZWlnaHQ9IjU0IiByeD0iMTIiIGZpbGw9IiMxQTFEMjQiIHN0cm9rZT0iIzFGNkZFQiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIvPgo8dGV4dCB4PSIxMjQiIHk9IjI1NSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPmhyYyBhbGlnbjwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSIyNzYiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPkV4YWN0IHRpbWUgb2YgZXZlcnkgc3Bva2VuIHdvcmQ8L3RleHQ+Cjx0ZXh0IHg9Ijg0OCIgeT0iMjU1IiBmaWxsPSIjMUY2RkVCIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5ZT1VSIE1BQzwvdGV4dD4KPGxpbmUgeDE9IjY2IiB5MT0iMzU0IiB4Mj0iNjYiIHkyPSIzODQiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxjaXJjbGUgY3g9IjY2IiBjeT0iMzMyIiByPSIyMiIgZmlsbD0iIzFGNkZFQiIvPjx0ZXh0IHg9IjY2IiB5PSIzMzkiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjQ8L3RleHQ+CjxyZWN0IHg9IjEwNCIgeT0iMzA2IiB3aWR0aD0iNzYwIiBoZWlnaHQ9IjU0IiByeD0iMTIiIGZpbGw9IiMxQTFEMjQiIHN0cm9rZT0iIzFGNkZFQiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIvPgo8dGV4dCB4PSIxMjQiIHk9IjMyOSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPmhyYyBzZWxlY3QgcHJlcGFyZTwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSIzNTAiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPldyaXRlcyB0aGUgdHJhbnNjcmlwdCBicmllZiBmb3IgQ2xhdWRlPC90ZXh0Pgo8dGV4dCB4PSI4NDgiIHk9IjMyOSIgZmlsbD0iIzFGNkZFQiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9ImVuZCI+WU9VUiBNQUM8L3RleHQ+CjxsaW5lIHgxPSI2NiIgeTE9IjQyOCIgeDI9IjY2IiB5Mj0iNDU4IiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMyIvPgo8Y2lyY2xlIGN4PSI2NiIgY3k9IjQwNiIgcj0iMjIiIGZpbGw9IiM4MjUwREYiLz48dGV4dCB4PSI2NiIgeT0iNDEzIiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj41PC90ZXh0Pgo8cmVjdCB4PSIxMDQiIHk9IjM4MCIgd2lkdGg9Ijc2MCIgaGVpZ2h0PSI1NCIgcng9IjEyIiBmaWxsPSIjMUExRDI0IiBzdHJva2U9IiM4MjUwREYiIHN0cm9rZS1vcGFjaXR5PSIwLjUiLz4KPHRleHQgeD0iMTI0IiB5PSI0MDMiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5QaWNrIHRoZSByZWVsczwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSI0MjQiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPkNsYXVkZSB3cml0ZXMgcmVlbHNfcGxhbi5qc29uOiBjdXRzLCBoZWFkbGluZXMsIGdyYXBoaWNzPC90ZXh0Pgo8dGV4dCB4PSI4NDgiIHk9IjQwMyIgZmlsbD0iIzgyNTBERiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9ImVuZCI+Q0xBVURFPC90ZXh0Pgo8bGluZSB4MT0iNjYiIHkxPSI1MDIiIHgyPSI2NiIgeTI9IjUzMiIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjMiLz4KPGNpcmNsZSBjeD0iNjYiIGN5PSI0ODAiIHI9IjIyIiBmaWxsPSIjRTgyNTJCIi8+PHRleHQgeD0iNjYiIHk9IjQ4NyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+NjwvdGV4dD4KPHJlY3QgeD0iMTA0IiB5PSI0NTQiIHdpZHRoPSI3NjAiIGhlaWdodD0iNTQiIHJ4PSIxMiIgZmlsbD0iIzFBMUQyNCIgc3Ryb2tlPSIjRTgyNTJCIiBzdHJva2Utb3BhY2l0eT0iMC41Ii8+Cjx0ZXh0IHg9IjEyNCIgeT0iNDc3IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+aHJjIHNlbGVjdCBjaGVjayArIGhyYyBhcHByb3ZlPC90ZXh0Pgo8dGV4dCB4PSIxMjQiIHk9IjQ5OCIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxNCI+WW91IHJlYWQgdGhlIGxpc3QgYW5kIGFwcHJvdmUuIE5vdGhpbmcgcmVuZGVycyBiZWZvcmUgdGhpczwvdGV4dD4KPHRleHQgeD0iODQ4IiB5PSI0NzciIGZpbGw9IiNFODI1MkIiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJlbmQiPllPVTwvdGV4dD4KPGxpbmUgeDE9IjY2IiB5MT0iNTc2IiB4Mj0iNjYiIHkyPSI2MDYiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxjaXJjbGUgY3g9IjY2IiBjeT0iNTU0IiByPSIyMiIgZmlsbD0iIzgyNTBERiIvPjx0ZXh0IHg9IjY2IiB5PSI1NjEiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjc8L3RleHQ+CjxyZWN0IHg9IjEwNCIgeT0iNTI4IiB3aWR0aD0iNzYwIiBoZWlnaHQ9IjU0IiByeD0iMTIiIGZpbGw9IiMxQTFEMjQiIHN0cm9rZT0iIzgyNTBERiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIvPgo8dGV4dCB4PSIxMjQiIHk9IjU1MSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPmhyYyB0cmFuc2xhdGUgcHJlcGFyZSAvIGJ1aWxkPC90ZXh0Pgo8dGV4dCB4PSIxMjQiIHk9IjU3MiIgZmlsbD0iI0FBQiIgZm9udC1zaXplPSIxNCI+Q2xhdWRlIHRyYW5zbGF0ZXMsIHRoZSBNYWMgYnVpbGRzIHN1YnRpdGxlIGZpbGVzPC90ZXh0Pgo8dGV4dCB4PSI4NDgiIHk9IjU1MSIgZmlsbD0iIzgyNTBERiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9ImVuZCI+Q0xBVURFK1lPVVIgTUFDPC90ZXh0Pgo8bGluZSB4MT0iNjYiIHkxPSI2NTAiIHgyPSI2NiIgeTI9IjY4MCIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjMiLz4KPGNpcmNsZSBjeD0iNjYiIGN5PSI2MjgiIHI9IjIyIiBmaWxsPSIjMUY2RkVCIi8+PHRleHQgeD0iNjYiIHk9IjYzNSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ODwvdGV4dD4KPHJlY3QgeD0iMTA0IiB5PSI2MDIiIHdpZHRoPSI3NjAiIGhlaWdodD0iNTQiIHJ4PSIxMiIgZmlsbD0iIzFBMUQyNCIgc3Ryb2tlPSIjMUY2RkVCIiBzdHJva2Utb3BhY2l0eT0iMC41Ii8+Cjx0ZXh0IHg9IjEyNCIgeT0iNjI1IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+aHJjIGFzc2V0czwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSI2NDYiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPkRvd25sb2FkcyB0aGUgcGhvdG9zIGZvciB0aGUgZ3JhcGhpY3M8L3RleHQ+Cjx0ZXh0IHg9Ijg0OCIgeT0iNjI1IiBmaWxsPSIjMUY2RkVCIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5ZT1VSIE1BQzwvdGV4dD4KPGxpbmUgeDE9IjY2IiB5MT0iNzI0IiB4Mj0iNjYiIHkyPSI3NTQiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxjaXJjbGUgY3g9IjY2IiBjeT0iNzAyIiByPSIyMiIgZmlsbD0iIzFGNkZFQiIvPjx0ZXh0IHg9IjY2IiB5PSI3MDkiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjk8L3RleHQ+CjxyZWN0IHg9IjEwNCIgeT0iNjc2IiB3aWR0aD0iNzYwIiBoZWlnaHQ9IjU0IiByeD0iMTIiIGZpbGw9IiMxQTFEMjQiIHN0cm9rZT0iIzFGNkZFQiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIvPgo8dGV4dCB4PSIxMjQiIHk9IjY5OSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPmhyYyByZW5kZXI8L3RleHQ+Cjx0ZXh0IHg9IjEyNCIgeT0iNzIwIiBmaWxsPSIjQUFCIiBmb250LXNpemU9IjE0Ij5SZWVscyBpbiA1IGxhbmd1YWdlcyArIHRoZSBSZXNvbHZlIHBhY2s8L3RleHQ+Cjx0ZXh0IHg9Ijg0OCIgeT0iNjk5IiBmaWxsPSIjMUY2RkVCIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0iZW5kIj5ZT1VSIE1BQzwvdGV4dD4KPGxpbmUgeDE9IjY2IiB5MT0iNzk4IiB4Mj0iNjYiIHkyPSI4MjgiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIzIi8+CjxjaXJjbGUgY3g9IjY2IiBjeT0iNzc2IiByPSIyMiIgZmlsbD0iIzFGNkZFQiIvPjx0ZXh0IHg9IjY2IiB5PSI3ODMiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjEwPC90ZXh0Pgo8cmVjdCB4PSIxMDQiIHk9Ijc1MCIgd2lkdGg9Ijc2MCIgaGVpZ2h0PSI1NCIgcng9IjEyIiBmaWxsPSIjMUExRDI0IiBzdHJva2U9IiMxRjZGRUIiIHN0cm9rZS1vcGFjaXR5PSIwLjUiLz4KPHRleHQgeD0iMTI0IiB5PSI3NzMiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5ocmMgcWE8L3RleHQ+Cjx0ZXh0IHg9IjEyNCIgeT0iNzk0IiBmaWxsPSIjQUFCIiBmb250LXNpemU9IjE0Ij5DaGVja3MgbGVuZ3RoLCBsb3VkbmVzcywgZmFjZXMsIGNhcHRpb25zPC90ZXh0Pgo8dGV4dCB4PSI4NDgiIHk9Ijc3MyIgZmlsbD0iIzFGNkZFQiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9ImVuZCI+WU9VUiBNQUM8L3RleHQ+CjxjaXJjbGUgY3g9IjY2IiBjeT0iODUwIiByPSIyMiIgZmlsbD0iI0U4MjUyQiIvPjx0ZXh0IHg9IjY2IiB5PSI4NTciIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjExPC90ZXh0Pgo8cmVjdCB4PSIxMDQiIHk9IjgyNCIgd2lkdGg9Ijc2MCIgaGVpZ2h0PSI1NCIgcng9IjEyIiBmaWxsPSIjMUExRDI0IiBzdHJva2U9IiNFODI1MkIiIHN0cm9rZS1vcGFjaXR5PSIwLjUiLz4KPHRleHQgeD0iMTI0IiB5PSI4NDciIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5Qb2xpc2ggaW4gUmVzb2x2ZTwvdGV4dD4KPHRleHQgeD0iMTI0IiB5PSI4NjgiIGZpbGw9IiNBQUIiIGZvbnQtc2l6ZT0iMTQiPkltcG9ydCB0aGUgLmZjcHhtbCwgZWRpdCBhbnkgbGF5ZXIsIGV4cG9ydDwvdGV4dD4KPHRleHQgeD0iODQ4IiB5PSI4NDciIGZpbGw9IiNFODI1MkIiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJlbmQiPllPVTwvdGV4dD4KPC9zdmc+" /></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Who</th>
+<th>What you type (in Terminal)</th>
+<th>What happens</th>
+<th>How long</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>You</td>
+<td><code>cd ~/HemuReelCreations &amp;&amp; source .venv/bin/activate</code></td>
+<td>Opens the HRC workspace. <strong>Do this every time you open a new Terminal.</strong></td>
+<td>1 s</td>
+</tr>
+<tr>
+<td>1</td>
+<td>You</td>
+<td>edit <code>config.yaml</code> → <code>input.video</code>, <code>input.srt</code></td>
+<td>Tells HRC which episode to use</td>
+<td>1 min</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Mac</td>
+<td><code>hrc ingest</code></td>
+<td>Reads the subtitles, finds camera changes and faces</td>
+<td>5–10 min</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Mac</td>
+<td><code>hrc align</code></td>
+<td>Finds the exact time of every spoken word</td>
+<td>~10 min</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Mac</td>
+<td><code>hrc select prepare</code></td>
+<td>Writes the transcript brief into <code>cache/select/</code></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Claude</td>
+<td>(in the project chat)</td>
+<td>Claude reads the brief and writes <code>reels_plan.json</code>: cuts, headlines, graphics, which moments get a sound</td>
+<td>—</td>
+</tr>
+<tr>
+<td>6</td>
+<td>You</td>
+<td><code>hrc select check</code> then <code>hrc approve</code></td>
+<td>Checks lengths and snaps cuts between words. <strong>Nothing renders before you approve.</strong></td>
+<td>10 s</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Mac + Claude</td>
+<td><code>hrc translate prepare</code> → Claude fills translations → <code>hrc translate build</code></td>
+<td>Subtitle files for all 5 languages in <code>subs/</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Mac</td>
+<td><code>hrc assets</code></td>
+<td>Downloads 5 HD photos (2400 px+, licences that allow monetised use) per photo moment and draws a numbered sheet per reel in <code>assets/sheets/</code></td>
+<td>2–4 min</td>
+</tr>
+<tr>
+<td>8b</td>
+<td>You or Claude</td>
+<td>look at <code>assets/sheets/reelNN.jpg</code></td>
+<td>Not the best photo? Add <code>"pick": 3</code> to that moment in <code>reels_plan.json</code>, run <code>hrc assets</code> again (instant)</td>
+<td>1 min</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Mac</td>
+<td><code>hrc render</code></td>
+<td>Cuts you out (with mic, cups, bottles in front), renders every reel in 5 languages + the Resolve pack</td>
+<td>~4–6 min per reel</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Mac</td>
+<td><code>hrc qa</code></td>
+<td>Checks length, loudness, captions, faces → <code>qa_report.md</code></td>
+<td>1 min</td>
+</tr>
+<tr>
+<td>11</td>
+<td>You</td>
+<td>DaVinci Resolve</td>
+<td>Import the layered timeline, polish, export (see below)</td>
+<td>your call</td>
+</tr>
+</tbody>
+</table>
+<p>Work on some reels only: add <code>--reel reel02,reel05</code>. Redo a step from scratch: add <code>--force</code>.
+Every step writes plain files you can open and edit; running a step again skips work whose inputs
+didn't change.</p>
+<h3>First-time setup (once per Mac)</h3>
+<pre><code class="language-bash">cd ~/HemuReelCreations
+bash setup_mac.sh            # ffmpeg, Python packages, fonts check, then `hrc doctor`
+source .venv/bin/activate
+hrc doctor                   # every line should say OK
+</code></pre>
+<p>Music: put royalty-free tracks in <code>assets/music/&lt;mood&gt;/</code> (moods: inspirational, tense, emotional,
+funny, calm, energetic). Without music the reels render with speech and sound effects only.
+Your own sound effects go in <code>assets/sfx/&lt;kind&gt;/</code> and are used instead of HRC's built-in ones.</p>
+<hr />
+<h2>What you get</h2>
+<pre><code>qa_report.md                         checks for every file (in the HRC folder)
+output/
+  reel02/
+    reel02_te.mp4  reel02_hi.mp4  reel02_en.mp4  reel02_ta.mp4  reel02_kn.mp4   ready to post
+    reel02_clean.mp4                 no captions
+    reel02_mix.wav                   the finished sound
+    resolve_te/                      the layered Resolve project (see below)
+</code></pre>
+<hr />
+<h2>Polishing a reel in DaVinci Resolve</h2>
+<p><img alt="One track per element" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MDAiIGhlaWdodD0iNzY5IiB2aWV3Qm94PSIwIDAgOTAwIDc2OSIgZm9udC1mYW1pbHk9IkhlbHZldGljYSwgQXJpYWwsIHNhbnMtc2VyaWYiPgo8cmVjdCB3aWR0aD0iOTAwIiBoZWlnaHQ9Ijc2OSIgcng9IjE4IiBmaWxsPSIjMEYxMTE1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSI0OCIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIyNiIgZm9udC13ZWlnaHQ9IjcwMCI+WW91ciByZWVsIGluIERhVmluY2kgUmVzb2x2ZTogb25lIHRyYWNrIHBlciBlbGVtZW50PC90ZXh0Pgo8dGV4dCB4PSIzMCIgeT0iOTkiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WMTErPC90ZXh0Pgo8dGV4dCB4PSI5MiIgeT0iOTMiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkdyYXBoaWMgd29yZHMgYXMgdGV4dCAob2ZmKTwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMTA5IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj50dXJuIG9uOiB3b3JkcywgZm9udCwgY29sb3VyLCBhbnkgYW5pbWF0aW9uPC90ZXh0Pgo8cmVjdCB4PSIzOTAiIHk9Ijc4IiB3aWR0aD0iNjAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjRkZENDAwIiBmaWxsLW9wYWNpdHk9IjAuMyIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utb3BhY2l0eT0iMC41IiBzdHJva2UtZGFzaGFycmF5PSI0IDMiLz4KPHJlY3QgeD0iNTQwIiB5PSI3OCIgd2lkdGg9IjcwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0ZGRDQwMCIgZmlsbC1vcGFjaXR5PSIwLjMiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIgc3Ryb2tlLWRhc2hhcnJheT0iNCAzIi8+CjxyZWN0IHg9IjcwMCIgeT0iNzgiIHdpZHRoPSI2MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiNGRkQ0MDAiIGZpbGwtb3BhY2l0eT0iMC4zIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1vcGFjaXR5PSIwLjUiIHN0cm9rZS1kYXNoYXJyYXk9IjQgMyIvPgo8cmVjdCB4PSI4MDAiIHk9Ijc4IiB3aWR0aD0iNTAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjRkZENDAwIiBmaWxsLW9wYWNpdHk9IjAuMyIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utb3BhY2l0eT0iMC41IiBzdHJva2UtZGFzaGFycmF5PSI0IDMiLz4KPHRleHQgeD0iMzAiIHk9IjE0NSIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPlYxMDwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjEzOSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+S2FyYW9rZSBjYXB0aW9uczwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMTU1IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj5jYXB0aW9uc190ZS5tb3YgKHRyYW5zcGFyZW50KSArIC5zcnQ8L3RleHQ+CjxyZWN0IHg9IjM4MCIgeT0iMTI0IiB3aWR0aD0iNDkwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0ZGRDQwMCIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSIxOTEiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WOTwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjE4NSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+SGVhZGxpbmUgYXMgdGV4dCAob2ZmKTwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMjAxIiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj50dXJuIG9uIHRvIGVkaXQgd29yZHMsIGZvbnQsIGNvbG91cjwvdGV4dD4KPHJlY3QgeD0iMzgwIiB5PSIxNzAiIHdpZHRoPSI0OTAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjRTgyNTJCIiBmaWxsLW9wYWNpdHk9IjAuMzUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuNSIgc3Ryb2tlLWRhc2hhcnJheT0iNCAzIi8+Cjx0ZXh0IHg9IjMwIiB5PSIyMzciIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WODwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjIzMSIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+SGVhZGxpbmUgcGljdHVyZTwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMjQ3IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj5oZWFkbGluZV90ZS5wbmc8L3RleHQ+CjxyZWN0IHg9IjM4MCIgeT0iMjE2IiB3aWR0aD0iNDkwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0U4MjUyQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSIyODMiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WNzwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjI3NyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+Q29ybmVyIGxvZ288L3RleHQ+PHRleHQgeD0iOTIiIHk9IjI5MyIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+YnJhbmQvbG9nby5wbmc8L3RleHQ+CjxyZWN0IHg9IjM4MCIgeT0iMjYyIiB3aWR0aD0iNDkwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSIzMjkiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WNjwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjMyMyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+R3JhcGhpYyBwYXJ0cyBpbiBmcm9udDwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMzM5IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj5nTk5fZnJvbnQubW92IChjb3VudGVycyk8L3RleHQ+CjxyZWN0IHg9IjM5MCIgeT0iMzA4IiB3aWR0aD0iNjAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjODI1MERGIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPHJlY3QgeD0iODAwIiB5PSIzMDgiIHdpZHRoPSI1MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiM4MjUwREYiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8dGV4dCB4PSIzMCIgeT0iMzc1IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+VjU8L3RleHQ+Cjx0ZXh0IHg9IjkyIiB5PSIzNjkiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkN1dC1vdXQ6IHlvdSArIG1pYywgY3Vwcy4uLjwvdGV4dD48dGV4dCB4PSI5MiIgeT0iMzg1IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj5nTk5fcGVyc29uLm1vdiAoa2VlcHMgZ3JhcGhpY3MgYmVoaW5kKTwvdGV4dD4KPHJlY3QgeD0iMzkwIiB5PSIzNTQiIHdpZHRoPSI2MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiMyRUEwNDMiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8cmVjdCB4PSI1NDAiIHk9IjM1NCIgd2lkdGg9IjcwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzJFQTA0MyIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjcwMCIgeT0iMzU0IiB3aWR0aD0iNjAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjMkVBMDQzIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPHJlY3QgeD0iODAwIiB5PSIzNTQiIHdpZHRoPSI1MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiMyRUEwNDMiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8dGV4dCB4PSIzMCIgeT0iNDIxIiBmaWxsPSIjODg5IiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+VjQ8L3RleHQ+Cjx0ZXh0IHg9IjkyIiB5PSI0MTUiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkdyYXBoaWNzPC90ZXh0Pjx0ZXh0IHg9IjkyIiB5PSI0MzEiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTEiPmdOTi5tb3YsIG9uZSBwZXIgZ3JhcGhpYzwvdGV4dD4KPHJlY3QgeD0iMzkwIiB5PSI0MDAiIHdpZHRoPSI2MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiM4MjUwREYiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8cmVjdCB4PSI1NDAiIHk9IjQwMCIgd2lkdGg9IjcwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzgyNTBERiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjcwMCIgeT0iNDAwIiB3aWR0aD0iNjAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjODI1MERGIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPHJlY3QgeD0iODAwIiB5PSI0MDAiIHdpZHRoPSI1MCIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiM4MjUwREYiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8dGV4dCB4PSIzMCIgeT0iNDY3IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+VjM8L3RleHQ+Cjx0ZXh0IHg9IjkyIiB5PSI0NjEiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPlBob3RvLCB1bnRvdWNoZWQgSEQgc3RpbGwgKG9mZik8L3RleHQ+PHRleHQgeD0iOTIiIHk9IjQ3NyIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+cGhvdG9zL2dOTl9waG90b19oZC5wbmcgKDJ4IHNpemUpPC90ZXh0Pgo8cmVjdCB4PSI1NDAiIHk9IjQ0NiIgd2lkdGg9IjcwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0QyOTkyMiIgZmlsbC1vcGFjaXR5PSIwLjM1IiBzdHJva2U9IiNmZmYiIHN0cm9rZS1vcGFjaXR5PSIwLjUiIHN0cm9rZS1kYXNoYXJyYXk9IjQgMyIvPgo8dGV4dCB4PSIzMCIgeT0iNTEzIiBmaWxsPSIjODg5IiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIiBmb250LWZhbWlseT0iTWVubG8sIG1vbm9zcGFjZSI+VjI8L3RleHQ+Cjx0ZXh0IHg9IjkyIiB5PSI1MDciIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPlBob3RvIGJhY2tncm91bmQ8L3RleHQ+PHRleHQgeD0iOTIiIHk9IjUyMyIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+Z05OX3Bob3RvLm1vdiAobG9vaywgcHVzaC1pbiwgZmFkZXMpPC90ZXh0Pgo8cmVjdCB4PSI1NDAiIHk9IjQ5MiIgd2lkdGg9IjcwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0QyOTkyMiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSI1NTkiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5WMTwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjU1MyIgZmlsbD0iI2ZmZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+VmlkZW8gKyBlbmRpbmcgc3RhbXA8L3RleHQ+PHRleHQgeD0iOTIiIHk9IjU2OSIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+MDFfdmlkZW8ubXA0IGN1dCBhdCBldmVyeSBqb2luLCBvdXRyby5tcDQ8L3RleHQ+CjxyZWN0IHg9IjM4MCIgeT0iNTM4IiB3aWR0aD0iMTQwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFGNkZFQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjUyNCIgeT0iNTM4IiB3aWR0aD0iMTE2IiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFGNkZFQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjY0NCIgeT0iNTM4IiB3aWR0aD0iMTU2IiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFGNkZFQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjgwNCIgeT0iNTM4IiB3aWR0aD0iNjYiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjMUY2RkVCIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPGxpbmUgeDE9IjIwIiB5MT0iNTk4IiB4Mj0iODgwIiB5Mj0iNTk4IiBzdHJva2U9IiM0NDQiIHN0cm9rZS1kYXNoYXJyYXk9IjYgNiIvPgo8dGV4dCB4PSIzMCIgeT0iNjMyLjYiIGZpbGw9IiM4ODkiIGZvbnQtc2l6ZT0iMTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGZvbnQtZmFtaWx5PSJNZW5sbywgbW9ub3NwYWNlIj5BMTwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjYyNi42IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIj5TcGVlY2g8L3RleHQ+PHRleHQgeD0iOTIiIHk9IjY0Mi42IiBmaWxsPSIjODg5IiBmb250LXNpemU9IjExIj5hdWRpby9zcGVlY2gud2F2PC90ZXh0Pgo8cmVjdCB4PSIzODAiIHk9IjYxMS42IiB3aWR0aD0iNDkwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzJFQTA0MyIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSI2NzguNiIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPkEyPC90ZXh0Pgo8dGV4dCB4PSI5MiIgeT0iNjcyLjYiIGZpbGw9IiNmZmYiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPk11c2ljPC90ZXh0Pjx0ZXh0IHg9IjkyIiB5PSI2ODguNiIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+YXVkaW8vbXVzaWMud2F2PC90ZXh0Pgo8cmVjdCB4PSIzODAiIHk9IjY1Ny42IiB3aWR0aD0iNDkwIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFGNkZFQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+Cjx0ZXh0IHg9IjMwIiB5PSI3MjQuNiIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxNSIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1mYW1pbHk9Ik1lbmxvLCBtb25vc3BhY2UiPkEzKzwvdGV4dD4KPHRleHQgeD0iOTIiIHk9IjcxOC42IiBmaWxsPSIjZmZmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIj5Tb3VuZCBlZmZlY3RzPC90ZXh0Pjx0ZXh0IHg9IjkyIiB5PSI3MzQuNiIgZmlsbD0iIzg4OSIgZm9udC1zaXplPSIxMSI+YXVkaW8vc2Z4L05OX2tpbmQud2F2LCBvbmUgY2xpcCBlYWNoPC90ZXh0Pgo8cmVjdCB4PSIzOTAiIHk9IjcwMy42IiB3aWR0aD0iNzAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjRTgyNTJCIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPHJlY3QgeD0iNTE5IiB5PSI3MDMuNiIgd2lkdGg9IjQ0IiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iI0U4MjUyQiIgZmlsbC1vcGFjaXR5PSIwLjg1Ii8+CjxyZWN0IHg9IjYyMiIgeT0iNzAzLjYiIHdpZHRoPSI2MyIgaGVpZ2h0PSIzMiIgcng9IjYiIGZpbGw9IiNFODI1MkIiIGZpbGwtb3BhY2l0eT0iMC44NSIvPgo8cmVjdCB4PSI3NzQiIHk9IjcwMy42IiB3aWR0aD0iMzAiIGhlaWdodD0iMzIiIHJ4PSI2IiBmaWxsPSIjRTgyNTJCIiBmaWxsLW9wYWNpdHk9IjAuODUiLz4KPC9zdmc+" /></p>
+<p><strong>Import</strong></p>
+<ol>
+<li>Open DaVinci Resolve and create or open a project. Set the project to 1080x1920, 30 fps:
+   <em>File → Project Settings → Master Settings → Timeline resolution: 1080 x 1920 (custom), 30 fps</em>.</li>
+<li><em>File → Import → Timeline…</em> and pick <code>output/&lt;reel&gt;/resolve_te/&lt;reel&gt;_te.fcpxml</code>.</li>
+<li>When Resolve asks, leave <strong>"Automatically import source clips into media pool"</strong> ticked.
+   All media is in the <code>media/</code> folder next to the .fcpxml, so nothing goes offline.</li>
+<li>Open <code>EDIT_SHEET.md</code> in the same folder. It lists every track and clip with its time, text,
+   animation and sound.</li>
+</ol>
+<p><strong>What is on each track</strong></p>
+<table>
+<thead>
+<tr>
+<th>Track</th>
+<th>Contents</th>
+<th>Things you can do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V1</td>
+<td>Podcast video, cut at every join; the ending stamp after it</td>
+<td>Trim, reorder, put a Resolve transition on any edit point (markers name the suggested one), colour grade</td>
+</tr>
+<tr>
+<td>V2</td>
+<td>Photo backgrounds, rendered with the look from <code>config.yaml</code> (<code>gfx.backdrop</code>), slow push-in and fades</td>
+<td>Grade it on the Color page, change opacity, retime, delete</td>
+</tr>
+<tr>
+<td>V3</td>
+<td>The same photo as an untouched HD still (twice the timeline size), <strong>off</strong></td>
+<td>Select it, press <strong>D</strong>, turn V2 off: now zoom, reframe and grade the full-quality photo yourself. The original download is in <code>media/photos/</code></td>
+</tr>
+<tr>
+<td>V4</td>
+<td>Each graphic alone, with transparency (<code>gfx/gNN.mov</code>): words, counters, pictures</td>
+<td>Move, scale, retime, fade, change opacity, delete or replace it</td>
+</tr>
+<tr>
+<td>V5</td>
+<td>You cut out, <strong>plus the mic, cups, bottles and other things in front of you</strong>, only while a graphic is behind you</td>
+<td>Delete one to bring that graphic in front of you</td>
+</tr>
+<tr>
+<td>V6</td>
+<td>Graphic parts that sit in front of you (counters)</td>
+<td>Same as V4</td>
+</tr>
+<tr>
+<td>V7</td>
+<td>Corner logo (the white stamp)</td>
+<td>Move, resize, change opacity, turn off</td>
+</tr>
+<tr>
+<td>V8</td>
+<td>Headline above the video, as a picture</td>
+<td>Turn off (select it, press <strong>D</strong>) when you use V9 instead</td>
+</tr>
+<tr>
+<td>V9</td>
+<td>Headline as Resolve text, <strong>off</strong> by default</td>
+<td>Select it, press <strong>D</strong> to turn it on, then change words, font, size and colour in the Inspector</td>
+</tr>
+<tr>
+<td>V10</td>
+<td>Karaoke captions with transparency</td>
+<td>Move or turn off. For captions you style yourself: <em>File → Import → Subtitle…</em> and pick <code>media/captions_te.srt</code></td>
+</tr>
+<tr>
+<td>V11 and up</td>
+<td>The words of every graphic as Resolve text, <strong>off</strong> by default</td>
+<td>To restyle a graphic yourself: turn its V4 clip off, turn this one on (<strong>D</strong>), then set words, font, colour and size in the Inspector and add any title animation from the Effects library (Fusion titles, Text+ "Write On" for a typewriter)</td>
+</tr>
+<tr>
+<td>A1</td>
+<td>Speech (cleaned)</td>
+<td>Level, EQ, noise reduction</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>Music, already ducked under the speech</td>
+<td>Level, swap the song</td>
+</tr>
+<tr>
+<td>A3 and up</td>
+<td>One clip per sound effect, gain already set</td>
+<td>Move, change volume, delete, or drag in your own sound</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Changing fonts and colours of the baked layers</strong> (captions, graphics text, headline picture):
+edit <code>config.yaml</code> (fonts under <code>subtitles.fonts</code>, colours under <code>project.brand_colors</code>, headline
+size under <code>layout.reel</code>), then rebuild just that pack in about a minute:</p>
+<pre><code class="language-bash">hrc resolve --reel reel02 --lang te       # or --lang te,en for several languages
+</code></pre>
+<p>Re-import the new .fcpxml (Resolve keeps your old timeline, so you can compare).</p>
+<p><strong>Levels:</strong> the separate tracks are not loudness-matched like the finished <code>.mp4</code>. When you're done,
+select all audio clips and use <em>Normalize Audio Levels</em> (−14 LUFS for Instagram and YouTube), or
+put a limiter on the main bus.</p>
+<p><strong>Export:</strong> <em>Deliver → Custom</em>, H.264 or H.265, 1080x1920, 30 fps, 12–16 Mbit/s, AAC 320 kbit/s.</p>
+<p>By default the Resolve pack is built in Telugu only (about 0.5–1 GB per reel). Add languages in
+<code>config.yaml</code> → <code>export.resolve_langs</code>, or for one reel: <code>hrc resolve --reel reel02 --lang en</code>.</p>
+<hr />
+<h2>Photos: ultra-HD and the right picture</h2>
+<ul>
+<li><code>hrc assets</code> only keeps photos at least <strong>2400 px wide</strong> (<code>assets.min_width</code>) whose licence allows monetised,
+  edited use (CC0, public domain, CC BY, CC BY-SA, Pexels, Pixabay). Non-commercial (NC) and no-derivatives (ND)
+  photos are skipped.</li>
+<li>For each photo moment it keeps <strong>5 candidates</strong> and draws <code>assets/sheets/&lt;reel&gt;.jpg</code>: numbered thumbnails with
+  size and licence, the chosen one framed in green.</li>
+<li>To use another one, add <code>"pick": 3</code> (the number on the sheet) to that visual moment in <code>reels_plan.json</code> and run
+  <code>hrc assets</code> again. To use your own photo, save it as <code>assets/images/&lt;reel&gt;/&lt;moment number&gt;.jpg</code>; it always wins.</li>
+<li>Free API keys give the best photos: put <code>PEXELS_API_KEY</code> and <code>PIXABAY_API_KEY</code> in your shell profile.</li>
+<li>The look behind you is set in <code>config.yaml</code> → <code>gfx.backdrop</code> (blur 0 = crisp; dim, desaturate, vignette, tint,
+  push_in). In Resolve you can also grade the photo on V2 or use the untouched HD still on V3.</li>
+</ul>
+<h2>The cut-out (you in front of the graphics)</h2>
+<p>Apple Vision finds you and every object in front of you: the mic, cups, bottles, a laptop. An object joins the
+cut-out when it is not too big (walls and the whole table are left out, <code>matte.object_max_area</code>), and, with the
+depth model, when it is as close to the camera as you or closer. Objects are steadied over 5 frames so they never
+flicker, and every edge is cleaned against the picture (<code>matte.refine_edges</code>). Needs macOS 14 or newer; on older
+macOS only the person is cut out. Turn objects off with <code>matte.objects: false</code>.</p>
+<h2>How the look is built (and the settings that control it)</h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>What HRC does</th>
+<th>Setting in <code>config.yaml</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Layout</td>
+<td>Landscape video in a 9:16 frame, headline bar above, captions below</td>
+<td><code>layout.reel.*</code></td>
+</tr>
+<tr>
+<td>Framing</td>
+<td>Steady "tripod" framing that follows the face slowly, punch-in zooms on emphasis words</td>
+<td><code>reframe.*</code></td>
+</tr>
+<tr>
+<td>Clean cuts</td>
+<td>A camera angle never flashes on screen for less than 0.4 s; the crop changes on the exact frame</td>
+<td><code>reframe.min_shot_sec</code></td>
+</tr>
+<tr>
+<td>Cut-out</td>
+<td>Apple Vision person + object segmentation (mic, cups, bottles stay in front), depth check, edge clean-up; RVM or MediaPipe as fallbacks</td>
+<td><code>matte.*</code></td>
+</tr>
+<tr>
+<td>Photos</td>
+<td>HD photos (2400 px+), crisp by default, numbered candidate sheets</td>
+<td><code>assets.*</code>, <code>gfx.backdrop.*</code></td>
+</tr>
+<tr>
+<td>Graphics</td>
+<td>Photo backgrounds, counters (₹/$/€ count up), stacked words with typewriter, glitch or fade</td>
+<td>per moment in <code>reels_plan.json</code></td>
+</tr>
+<tr>
+<td>Captions</td>
+<td>1–2 lines, active word in yellow, key words in red, never blink between lines</td>
+<td><code>subtitles.*</code></td>
+</tr>
+<tr>
+<td>Sound</td>
+<td>Speech cleanup, ducked music, sound effects only on 2–4 key moments, −14 LUFS</td>
+<td><code>audio.*</code></td>
+</tr>
+<tr>
+<td>Brand</td>
+<td>Your round stamp as the corner logo, and a stamp slam with sound at the end</td>
+<td><code>project.logo*</code>, <code>project.end_stamp_size</code></td>
+</tr>
+</tbody>
+</table>
+<p>In <code>reels_plan.json</code> each visual moment can carry:
+<code>"anim"</code> (typewriter, glitch, fade, zoom, slide), <code>"style"</code> (backdrop or sprite for pictures),
+<code>"sfx": true</code> (make sure it gets a sound) or <code>"sfx": false</code> (keep it silent).
+A reel can switch off its ending with <code>"outro": false</code>.</p>
+<hr />
+<h2>When something goes wrong</h2>
+<table>
+<thead>
+<tr>
+<th>You see</th>
+<th>Do this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command not found: hrc</code></td>
+<td>Run <code>source .venv/bin/activate</code> inside <code>~/HemuReelCreations</code> first</td>
+</tr>
+<tr>
+<td>"The reel plan is not approved yet"</td>
+<td>Run <code>hrc select check</code> and <code>hrc approve</code></td>
+</tr>
+<tr>
+<td>"no hi subtitles yet"</td>
+<td>Run <code>hrc translate build</code> (translations must be filled first)</td>
+</tr>
+<tr>
+<td>A reel is over 60 s</td>
+<td>Trim a segment in <code>reels_plan.json</code>, then <code>hrc select check &amp;&amp; hrc approve</code></td>
+</tr>
+<tr>
+<td>Resolve shows clips as offline</td>
+<td>Keep <code>media/</code> next to the .fcpxml; or right-click the bin → <em>Relink Selected Clips</em> and pick <code>media/</code></td>
+</tr>
+<tr>
+<td>A graphic covers the face</td>
+<td>Check that its V5 cut-out clip is on, or move the V4 clip; see <code>qa_report.md</code></td>
+</tr>
+<tr>
+<td>Wrong or blurry photo</td>
+<td>Open <code>assets/sheets/&lt;reel&gt;.jpg</code>, set <code>"pick": n</code> on that moment, <code>hrc assets</code>, then <code>hrc render --reel &lt;reel&gt;</code></td>
+</tr>
+<tr>
+<td>The cut-out misses an object or takes one too many</td>
+<td>Raise or lower <code>matte.object_max_area</code>, or set <code>matte.depth: false</code>; <code>hrc render --reel &lt;reel&gt; --force</code></td>
+</tr>
+<tr>
+<td>Telugu letters look broken in graphics</td>
+<td><code>brew install libraqm</code>, then <code>pip install --force-reinstall pillow</code></td>
+</tr>
+<tr>
+<td>Telugu letters broken only when run with <code>nohup</code></td>
+<td>Run long jobs as <code>bash -c 'source .venv/bin/activate &amp;&amp; hrc render'</code> in the background; plain <code>nohup hrc ...</code> loses the text-shaping library</td>
+</tr>
+<tr>
+<td>No music</td>
+<td>Add files to <code>assets/music/&lt;mood&gt;/</code> and render again</td>
+</tr>
+</tbody>
+</table>
+<h2>Limits</h2>
+<ul>
+<li>Translated captions are timed across each line, so they are close but not word-exact; Telugu is word-exact.</li>
+<li>Two people in one wide shot: the framing follows the biggest, steadiest face.</li>
+<li>Auto graphics are clean templates, not hand-made motion design. Polish your best reels in Resolve.</li>
+<li>Web photos come from free sources (Openverse, Wikimedia). Anything flagged ⚠ in
+  <code>assets/manifest.json</code> (logos, news, film stills, people) needs your call before posting.</li>
+<li>Hair edges can shimmer on fast movement; the matte flicker score is in <code>qa_report.md</code>.</li>
+</ul>
+<h2>Version history</h2>
+<ul>
+<li><strong>v0.7</strong> Cut-out keeps the mic, cups and bottles in front; HD photos (2400 px+, commercial licences) with candidate sheets and <code>"pick"</code>; crisp, configurable photo look; photo and HD still on their own Resolve tracks; every graphic's words as editable Resolve text.</li>
+<li><strong>v0.6</strong> Layered DaVinci Resolve pack (<code>hrc resolve</code>), illustrated README, 10 reels from HemuXSrinadh_Part1.</li>
+<li><strong>v0.5</strong> Clean camera cuts, steady captions, sound only on key moments, brand stamp logo and ending stamp.</li>
+<li><strong>v0.4</strong> Typewriter, glitch and fade text, money counters, softer cinematic sounds, Apple Vision cut-out, no opening text card.</li>
+<li><strong>v0.3</strong> Reel layout: landscape video in a 9:16 frame with headline and captions, photo backgrounds behind the speaker.</li>
+<li><strong>v0.2</strong> Steady framing, flicker-free 1–2 line captions, portrait and landscape formats.</li>
+</ul></main></body></html>

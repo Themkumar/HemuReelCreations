@@ -98,11 +98,22 @@ matte:
   engine: auto              # auto | vision | rvm | mediapipe | none  (auto = Apple Vision on a Mac)
   downsample: 0.4
   temporal_smooth: 0.6
+  objects: true             # also cut out the mic, cups, bottles and other things in front of you (macOS 14+)
+  object_max_area: 0.22     # ignore "objects" bigger than this share of the picture (walls, the whole table)
+  depth: true               # use a depth model to keep only objects as near as you or nearer
+  refine_edges: true        # edge-aware clean-up of hair, hands and mic edges
 
 gfx:
   max_major_at_once: 1
   lead_frames: 1            # appear this many frames before the word
   default_hold_sec: 2.2
+  backdrop:                 # look of photos that replace the wall behind you
+    blur: 0                 # 0 = crisp photo; 3-8 = soft, dreamy background
+    dim: 0.22               # 0 = full brightness, 0.5 = half
+    desaturate: 0.1         # 0 = full colour, 1 = black and white
+    vignette: 0.3           # darker corners
+    tint: 0.03              # faint brand-red wash
+    push_in: 0.05           # slow zoom while the photo is on screen
 
 transitions:
   library: [zoom_punch, hard, whip_pan]   # clean, editor-style joins. Flashier ones: glitch, rgb_split,
@@ -127,10 +138,16 @@ export:
   clean_version: true
   fcpxml: true
   resolve_pack: true        # layered pack for DaVinci Resolve: every graphic, caption, logo and sound on its own track
-  resolve_langs: [te]       # languages to build packs for (each pack ~0.5-1 GB); `hrc resolve --lang en` adds more
+  resolve_langs: [te]
+
+resolve:
+  graphic_font: Anton       # font of the editable graphic text in Resolve (tracks V11 and up)
+  graphic_size: 96       # languages to build packs for (each pack ~0.5-1 GB); `hrc resolve --lang en` adds more
 
 assets:
-  sources: [openverse, wikimedia, pexels, pixabay]
+  sources: [wikimedia, openverse, pexels, pixabay]   # free keys for Pexels/Pixabay give the best HD photos
+  min_width: 2400           # skip photos narrower than this (backgrounds stay sharp on a 4K source)
+  candidates: 5             # photos kept per moment; see assets/sheets/<reel>.jpg and set "pick": n to swap
   pexels_key_env: PEXELS_API_KEY
   pixabay_key_env: PIXABAY_API_KEY
   remove_background: true

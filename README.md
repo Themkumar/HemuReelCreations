@@ -23,8 +23,9 @@ caption, logo and sound sits on its own track. The audio always stays Telugu.
 | 5 | Claude | (in the project chat) | Claude reads the brief and writes `reels_plan.json`: cuts, headlines, graphics, which moments get a sound | — |
 | 6 | You | `hrc select check` then `hrc approve` | Checks lengths and snaps cuts between words. **Nothing renders before you approve.** | 10 s |
 | 7 | Mac + Claude | `hrc translate prepare` → Claude fills translations → `hrc translate build` | Subtitle files for all 5 languages in `subs/` | — |
-| 8 | Mac | `hrc assets` | Downloads the photos the graphics use (free sources, licence noted) | 1–2 min |
-| 9 | Mac | `hrc render` | Renders every reel in 5 languages + the Resolve pack | ~3–5 min per reel |
+| 8 | Mac | `hrc assets` | Downloads 5 HD photos (2400 px+, licences that allow monetised use) per photo moment and draws a numbered sheet per reel in `assets/sheets/` | 2–4 min |
+| 8b | You or Claude | look at `assets/sheets/reelNN.jpg` | Not the best photo? Add `"pick": 3` to that moment in `reels_plan.json`, run `hrc assets` again (instant) | 1 min |
+| 9 | Mac | `hrc render` | Cuts you out (with mic, cups, bottles in front), renders every reel in 5 languages + the Resolve pack | ~4–6 min per reel |
 | 10 | Mac | `hrc qa` | Checks length, loudness, captions, faces → `qa_report.md` | 1 min |
 | 11 | You | DaVinci Resolve | Import the layered timeline, polish, export (see below) | your call |
 
@@ -80,13 +81,16 @@ output/
 | Track | Contents | Things you can do |
 |---|---|---|
 | V1 | Podcast video, cut at every join; the ending stamp after it | Trim, reorder, put a Resolve transition on any edit point (markers name the suggested one), colour grade |
-| V2 | Each graphic alone, with transparency (`gfx/gNN.mov`) | Move, scale, retime, fade, change opacity, delete or replace it |
-| V3 | You, cut out from the background, only while a graphic is behind you | Delete one to bring that graphic in front of you |
-| V4 | Graphic parts that sit in front of you (counters) | Same as V2 |
-| V5 | Corner logo (the white stamp) | Move, resize, change opacity, turn off |
-| V6 | Headline above the video, as a picture | Turn off (select it, press **D**) when you use V7 instead |
-| V7 | Headline as Resolve text, **off** by default | Select it, press **D** to turn it on, then change words, font, size and colour in the Inspector |
-| V8 | Karaoke captions with transparency | Move or turn off. For captions you style yourself: *File → Import → Subtitle…* and pick `media/captions_te.srt` |
+| V2 | Photo backgrounds, rendered with the look from `config.yaml` (`gfx.backdrop`), slow push-in and fades | Grade it on the Color page, change opacity, retime, delete |
+| V3 | The same photo as an untouched HD still (twice the timeline size), **off** | Select it, press **D**, turn V2 off: now zoom, reframe and grade the full-quality photo yourself. The original download is in `media/photos/` |
+| V4 | Each graphic alone, with transparency (`gfx/gNN.mov`): words, counters, pictures | Move, scale, retime, fade, change opacity, delete or replace it |
+| V5 | You cut out, **plus the mic, cups, bottles and other things in front of you**, only while a graphic is behind you | Delete one to bring that graphic in front of you |
+| V6 | Graphic parts that sit in front of you (counters) | Same as V4 |
+| V7 | Corner logo (the white stamp) | Move, resize, change opacity, turn off |
+| V8 | Headline above the video, as a picture | Turn off (select it, press **D**) when you use V9 instead |
+| V9 | Headline as Resolve text, **off** by default | Select it, press **D** to turn it on, then change words, font, size and colour in the Inspector |
+| V10 | Karaoke captions with transparency | Move or turn off. For captions you style yourself: *File → Import → Subtitle…* and pick `media/captions_te.srt` |
+| V11 and up | The words of every graphic as Resolve text, **off** by default | To restyle a graphic yourself: turn its V4 clip off, turn this one on (**D**), then set words, font, colour and size in the Inspector and add any title animation from the Effects library (Fusion titles, Text+ "Write On" for a typewriter) |
 | A1 | Speech (cleaned) | Level, EQ, noise reduction |
 | A2 | Music, already ducked under the speech | Level, swap the song |
 | A3 and up | One clip per sound effect, gain already set | Move, change volume, delete, or drag in your own sound |
@@ -112,6 +116,27 @@ By default the Resolve pack is built in Telugu only (about 0.5–1 GB per reel).
 
 ---
 
+## Photos: ultra-HD and the right picture
+
+- `hrc assets` only keeps photos at least **2400 px wide** (`assets.min_width`) whose licence allows monetised,
+  edited use (CC0, public domain, CC BY, CC BY-SA, Pexels, Pixabay). Non-commercial (NC) and no-derivatives (ND)
+  photos are skipped.
+- For each photo moment it keeps **5 candidates** and draws `assets/sheets/<reel>.jpg`: numbered thumbnails with
+  size and licence, the chosen one framed in green.
+- To use another one, add `"pick": 3` (the number on the sheet) to that visual moment in `reels_plan.json` and run
+  `hrc assets` again. To use your own photo, save it as `assets/images/<reel>/<moment number>.jpg`; it always wins.
+- Free API keys give the best photos: put `PEXELS_API_KEY` and `PIXABAY_API_KEY` in your shell profile.
+- The look behind you is set in `config.yaml` → `gfx.backdrop` (blur 0 = crisp; dim, desaturate, vignette, tint,
+  push_in). In Resolve you can also grade the photo on V2 or use the untouched HD still on V3.
+
+## The cut-out (you in front of the graphics)
+
+Apple Vision finds you and every object in front of you: the mic, cups, bottles, a laptop. An object joins the
+cut-out when it is not too big (walls and the whole table are left out, `matte.object_max_area`), and, with the
+depth model, when it is as close to the camera as you or closer. Objects are steadied over 5 frames so they never
+flicker, and every edge is cleaned against the picture (`matte.refine_edges`). Needs macOS 14 or newer; on older
+macOS only the person is cut out. Turn objects off with `matte.objects: false`.
+
 ## How the look is built (and the settings that control it)
 
 | Element | What HRC does | Setting in `config.yaml` |
@@ -119,7 +144,8 @@ By default the Resolve pack is built in Telugu only (about 0.5–1 GB per reel).
 | Layout | Landscape video in a 9:16 frame, headline bar above, captions below | `layout.reel.*` |
 | Framing | Steady "tripod" framing that follows the face slowly, punch-in zooms on emphasis words | `reframe.*` |
 | Clean cuts | A camera angle never flashes on screen for less than 0.4 s; the crop changes on the exact frame | `reframe.min_shot_sec` |
-| Cut-out | Apple Vision person segmentation (RVM or MediaPipe as fallbacks) so graphics sit behind you | `matte.engine` |
+| Cut-out | Apple Vision person + object segmentation (mic, cups, bottles stay in front), depth check, edge clean-up; RVM or MediaPipe as fallbacks | `matte.*` |
+| Photos | HD photos (2400 px+), crisp by default, numbered candidate sheets | `assets.*`, `gfx.backdrop.*` |
 | Graphics | Photo backgrounds, counters (₹/$/€ count up), stacked words with typewriter, glitch or fade | per moment in `reels_plan.json` |
 | Captions | 1–2 lines, active word in yellow, key words in red, never blink between lines | `subtitles.*` |
 | Sound | Speech cleanup, ducked music, sound effects only on 2–4 key moments, −14 LUFS | `audio.*` |
@@ -141,7 +167,9 @@ A reel can switch off its ending with `"outro": false`.
 | "no hi subtitles yet" | Run `hrc translate build` (translations must be filled first) |
 | A reel is over 60 s | Trim a segment in `reels_plan.json`, then `hrc select check && hrc approve` |
 | Resolve shows clips as offline | Keep `media/` next to the .fcpxml; or right-click the bin → *Relink Selected Clips* and pick `media/` |
-| A graphic covers the face | Delete its V3 cut-out clip back in, or move the V2 clip; check `qa_report.md` |
+| A graphic covers the face | Check that its V5 cut-out clip is on, or move the V4 clip; see `qa_report.md` |
+| Wrong or blurry photo | Open `assets/sheets/<reel>.jpg`, set `"pick": n` on that moment, `hrc assets`, then `hrc render --reel <reel>` |
+| The cut-out misses an object or takes one too many | Raise or lower `matte.object_max_area`, or set `matte.depth: false`; `hrc render --reel <reel> --force` |
 | Telugu letters look broken in graphics | `brew install libraqm`, then `pip install --force-reinstall pillow` |
 | Telugu letters broken only when run with `nohup` | Run long jobs as `bash -c 'source .venv/bin/activate && hrc render'` in the background; plain `nohup hrc ...` loses the text-shaping library |
 | No music | Add files to `assets/music/<mood>/` and render again |
@@ -157,6 +185,7 @@ A reel can switch off its ending with `"outro": false`.
 
 ## Version history
 
+- **v0.7** Cut-out keeps the mic, cups and bottles in front; HD photos (2400 px+, commercial licences) with candidate sheets and `"pick"`; crisp, configurable photo look; photo and HD still on their own Resolve tracks; every graphic's words as editable Resolve text.
 - **v0.6** Layered DaVinci Resolve pack (`hrc resolve`), illustrated README, 10 reels from HemuXSrinadh_Part1.
 - **v0.5** Clean camera cuts, steady captions, sound only on key moments, brand stamp logo and ending stamp.
 - **v0.4** Typewriter, glitch and fade text, money counters, softer cinematic sounds, Apple Vision cut-out, no opening text card.

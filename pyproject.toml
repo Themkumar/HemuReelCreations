@@ -1,6 +1,6 @@
 [project]
 name = "hemureelcreations"
-version = "0.6.0"
+version = "0.7.0"
 description = "Telugu podcast to 9:16 reels with 5-language karaoke subtitles"
 requires-python = ">=3.10"
 dependencies = ["numpy", "opencv-python-headless>=4.8,<5", "pillow", "pyyaml", "requests"]

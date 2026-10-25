@@ -175,3 +175,32 @@ def test_snap_keeps_cut_already_between_words():
 def test_resolve_escape_quotes():
     from hrc.resolve import escape
     assert escape('"BEST" <A&B>') == "&quot;BEST&quot; &lt;A&amp;B&gt;"
+
+
+def test_rank_keeps_big_commercial_photos():
+    from hrc.assets import rank
+    hits = [{"url": "a", "width": 1200, "height": 800, "license": "CC BY 4.0"},
+            {"url": "b", "width": 4000, "height": 2600, "license": "CC BY-NC 2.0"},
+            {"url": "c", "width": 3000, "height": 2000, "license": "CC BY-SA 4.0"},
+            {"url": "d", "width": 5000, "height": 3300, "license": "Public domain"}]
+    got = [h["url"] for h in rank(hits, 2400, backdrop=True)]
+    assert got[0] in ("c", "d") and "a" not in got and "b" not in got
+
+
+def test_select_objects_keeps_mic_drops_wall_and_person():
+    import numpy as np
+    from hrc.matte import select_objects
+    person = np.zeros((100, 100), np.float32); person[30:100, 10:40] = 1
+    labels = np.zeros((50, 50), np.uint8)
+    labels[15:50, 5:20] = 1      # the person again
+    labels[25:35, 30:34] = 2     # a mic
+    labels[0:20, :] = 3          # a wall touching the top (too big)
+    assert select_objects(person, labels, None) == [2]
+
+
+def test_guided_filter_keeps_flat_alpha():
+    import numpy as np
+    from hrc.matte import guided_filter
+    I = np.full((40, 40), 0.5, np.float32); p = np.zeros((40, 40), np.float32); p[:, 20:] = 1
+    out = guided_filter(I, p, r=3)
+    assert out[:, :15].max() < 0.05 and out[:, 25:].min() > 0.95

@@ -521,6 +521,7 @@ def suffix(fmt: str, preview: bool) -> str:
 def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: bool = False, force: bool = False,
                 fmt: str = "portrait") -> Path:
     fps = cfg.at("reel.fps", 30)
+    gfx.BACKDROP.update(cfg.at("gfx.backdrop") or {})
     FW, FH = dims(cfg, fmt, preview)
     box = video_box(cfg, fmt, preview)
     W, H = box[2], box[3]  # the picture itself; for `reel` it is framed inside FW x FH at the end
@@ -545,7 +546,10 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
         mres = read_json(rdir / "matte.json")
     else:
         mres = matte.make_matte(rdir / "plate.mp4", rdir / "matte.mp4", cfg.at("matte.engine", "auto"),
-                                cfg.at("matte.downsample", 0.4), cfg.at("matte.temporal_smooth", 0.6))
+                                cfg.at("matte.downsample", 0.4), cfg.at("matte.temporal_smooth", 0.6),
+                                objects=bool(cfg.at("matte.objects", True)), refine=bool(cfg.at("matte.refine_edges", True)),
+                                max_area=float(cfg.at("matte.object_max_area", 0.22)),
+                                depth_model=bool(cfg.at("matte.depth", True)))
         write_json(rdir / "matte.json", mres)
         if mres["engine"] != "none":
             mark(rdir / "matte.mp4", fp_matte)
