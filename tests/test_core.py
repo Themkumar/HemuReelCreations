@@ -150,3 +150,14 @@ def test_sfx_only_on_key_moments():
     ts = sorted(x["t"] for x in out)
     assert 3.0 not in ts and 20.0 not in ts and 12.0 in ts
     assert all(b - a >= 5.0 for a, b in zip(ts, ts[1:]))
+
+
+def test_resolve_unmix_recovers_transparency():
+    import numpy as np
+    from hrc.resolve import unmix
+    col, a = np.array([200.0, 50.0, 10.0]), 0.4
+    blk = np.zeros((4, 4, 3)) * (1 - a) + col * a
+    wht = np.full((4, 4, 3), 255.0) * (1 - a) + col * a
+    out = unmix(blk, wht)
+    assert abs(int(out[0, 0, 3]) - 102) <= 1
+    assert np.allclose(out[0, 0, :3], col, atol=2)

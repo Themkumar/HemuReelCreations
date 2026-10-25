@@ -23,6 +23,30 @@ def pick_music(music_dir: Path, mood: str, rng: random.Random) -> Path | None:
     return None
 
 
+def stems(cfg, speech: Path, duration: float, music: str | None, out_dir: Path) -> dict:
+    """Separate tracks for editing in Resolve: cleaned speech and the music ducked under it.
+    They are not loudness-normalised (the finished mix is); see the README for levelling."""
+    ac = cfg.at("audio", {})
+    out_dir.mkdir(parents=True, exist_ok=True)
+    clean = "highpass=f=80,afftdn=nf=-25,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=2" \
+        if ac.get("speech_cleanup", True) else "anull"
+    sp = out_dir / "speech.wav"
+    run([ffmpeg(), "-y", "-v", "error", "-i", speech, "-af",
+         f"aresample=48000,aformat=channel_layouts=stereo,{clean},apad=whole_dur={duration:.3f},atrim=0:{duration:.3f}",
+         "-c:a", "pcm_s24le", sp])
+    res = {"speech": sp, "music": None}
+    if music:
+        mu = out_dir / "music.wav"
+        fc = (f"[0:a]aresample=48000,aformat=channel_layouts=stereo,{clean},apad=whole_dur={duration:.3f}[sc];"
+              f"[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{duration:.3f},"
+              f"volume={ac.get('music_db', -20)}dB,afade=t=in:d=0.6,afade=t=out:st={max(0, duration - 1.2):.3f}:d=1.2[mus];"
+              f"[mus][sc]sidechaincompress=threshold=0.03:ratio={ac.get('duck_ratio', 8)}:attack=20:release=350[out]")
+        run([ffmpeg(), "-y", "-v", "error", "-i", speech, "-stream_loop", "-1", "-i", music, "-filter_complex", fc,
+             "-map", "[out]", "-t", f"{duration:.3f}", "-c:a", "pcm_s24le", mu])
+        res["music"] = mu
+    return res
+
+
 def mix(cfg, speech: Path, duration: float, events: list[dict], mood: str, out: Path, seed: int = 0) -> dict:
     """speech: audio already cut to reel timeline. events: [{t, kind}] in reel seconds."""
     rng = random.Random(seed)
@@ -65,7 +89,9 @@ def mix(cfg, speech: Path, duration: float, events: list[dict], mood: str, out: 
                       f"volume={ac.get('sfx_db', -6) + KIND_DB.get(ev['kind'], 0) + ev.get('gain_db', 0)}dB,"
                       f"adelay={ms}|{ms}[s{idx}]")
         mix_in.append(f"[s{idx}]")
-        used["sfx"].append({"t": round(ev["t"], 3), "kind": ev["kind"], "file": f.name})
+        gain = ac.get('sfx_db', -6) + KIND_DB.get(ev['kind'], 0) + ev.get('gain_db', 0)
+        used["sfx"].append({"t": round(ev["t"], 3), "start": round(t, 3), "kind": ev["kind"], "file": f.name,
+                            "path": str(f), "gain_db": round(gain, 1)})
         idx += 1
     lufs = ac.get("target_lufs", -14)
     chains.append(f"{''.join(mix_in)}amix=inputs={len(mix_in)}:normalize=0:duration=first,"

@@ -126,6 +126,8 @@ export:
   audio_bitrate: 320k
   clean_version: true
   fcpxml: true
+  resolve_pack: true        # layered pack for DaVinci Resolve: every graphic, caption, logo and sound on its own track
+  resolve_langs: [te]       # languages to build packs for (each pack ~0.5-1 GB); `hrc resolve --lang en` adds more
 
 assets:
   sources: [openverse, wikimedia, pexels, pixabay]

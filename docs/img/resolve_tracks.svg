@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="606" viewBox="0 0 900 606" font-family="Helvetica, Arial, sans-serif">
+<rect width="900" height="606" rx="18" fill="#0F1115"/>
+<text x="30" y="48" fill="#fff" font-size="26" font-weight="700">Your reel in DaVinci Resolve: one track per element</text>
+<text x="30" y="99" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V8</text>
+<text x="80" y="93" fill="#fff" font-size="14" font-weight="700">Karaoke captions</text><text x="80" y="109" fill="#889" font-size="11">captions_te.mov (transparent) + .srt</text>
+<rect x="380" y="78" width="490" height="32" rx="6" fill="#FFD400" fill-opacity="0.85"/>
+<text x="30" y="145" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V7</text>
+<text x="80" y="139" fill="#fff" font-size="14" font-weight="700">Headline as text (off)</text><text x="80" y="155" fill="#889" font-size="11">turn on to edit words, font, colour</text>
+<rect x="380" y="124" width="490" height="32" rx="6" fill="#E8252B" fill-opacity="0.35"/>
+<text x="30" y="191" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V6</text>
+<text x="80" y="185" fill="#fff" font-size="14" font-weight="700">Headline picture</text><text x="80" y="201" fill="#889" font-size="11">headline_te.png</text>
+<rect x="380" y="170" width="490" height="32" rx="6" fill="#E8252B" fill-opacity="0.85"/>
+<text x="30" y="237" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V5</text>
+<text x="80" y="231" fill="#fff" font-size="14" font-weight="700">Corner logo</text><text x="80" y="247" fill="#889" font-size="11">brand/logo.png</text>
+<rect x="380" y="216" width="490" height="32" rx="6" fill="#FFFFFF" fill-opacity="0.85"/>
+<text x="30" y="283" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V4</text>
+<text x="80" y="277" fill="#fff" font-size="14" font-weight="700">Graphic parts in front</text><text x="80" y="293" fill="#889" font-size="11">gNN_front.mov</text>
+<text x="30" y="329" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V3</text>
+<text x="80" y="323" fill="#fff" font-size="14" font-weight="700">Speaker cut-out</text><text x="80" y="339" fill="#889" font-size="11">gNN_person.mov (keeps graphics behind you)</text>
+<text x="30" y="375" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V2</text>
+<text x="80" y="369" fill="#fff" font-size="14" font-weight="700">Graphics</text><text x="80" y="385" fill="#889" font-size="11">gNN.mov, one per graphic</text>
+<text x="30" y="421" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">V1</text>
+<text x="80" y="415" fill="#fff" font-size="14" font-weight="700">Video + ending stamp</text><text x="80" y="431" fill="#889" font-size="11">01_video.mp4 cut at every join, outro.mp4</text>
+<rect x="380" y="400" width="140" height="32" rx="6" fill="#1F6FEB" fill-opacity="0.85"/>
+<rect x="524" y="400" width="116" height="32" rx="6" fill="#1F6FEB" fill-opacity="0.85"/>
+<rect x="644" y="400" width="156" height="32" rx="6" fill="#1F6FEB" fill-opacity="0.85"/>
+<rect x="804" y="400" width="66" height="32" rx="6" fill="#1F6FEB" fill-opacity="0.85"/>
+<line x1="20" y1="436" x2="880" y2="436" stroke="#444" stroke-dasharray="6 6"/>
+<text x="30" y="467" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">A1</text>
+<text x="80" y="461" fill="#fff" font-size="14" font-weight="700">Speech</text><text x="80" y="477" fill="#889" font-size="11">audio/speech.wav</text>
+<rect x="380" y="446" width="490" height="32" rx="6" fill="#2EA043" fill-opacity="0.85"/>
+<text x="30" y="513" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">A2</text>
+<text x="80" y="507" fill="#fff" font-size="14" font-weight="700">Music</text><text x="80" y="523" fill="#889" font-size="11">audio/music.wav</text>
+<rect x="380" y="492" width="490" height="32" rx="6" fill="#1F6FEB" fill-opacity="0.85"/>
+<text x="30" y="559" fill="#889" font-size="15" font-weight="700" font-family="Menlo, monospace">A3+</text>
+<text x="80" y="553" fill="#fff" font-size="14" font-weight="700">Sound effects</text><text x="80" y="569" fill="#889" font-size="11">audio/sfx/NN_kind.wav, one clip each</text>
+<rect x="390" y="538" width="70" height="32" rx="6" fill="#E8252B" fill-opacity="0.85"/>
+<rect x="519" y="538" width="44" height="32" rx="6" fill="#E8252B" fill-opacity="0.85"/>
+<rect x="622" y="538" width="63" height="32" rx="6" fill="#E8252B" fill-opacity="0.85"/>
+<rect x="774" y="538" width="30" height="32" rx="6" fill="#E8252B" fill-opacity="0.85"/>
+<rect x="390" y="354" width="60" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/><rect x="540" y="354" width="70" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/><rect x="700" y="354" width="60" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/><rect x="800" y="354" width="50" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/><rect x="390" y="308" width="60" height="32" rx="6" fill="#2EA043" fill-opacity="0.85"/><rect x="540" y="308" width="70" height="32" rx="6" fill="#2EA043" fill-opacity="0.85"/><rect x="700" y="308" width="60" height="32" rx="6" fill="#2EA043" fill-opacity="0.85"/><rect x="800" y="308" width="50" height="32" rx="6" fill="#2EA043" fill-opacity="0.85"/><rect x="390" y="262" width="60" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/><rect x="800" y="262" width="50" height="32" rx="6" fill="#8250DF" fill-opacity="0.85"/></svg>

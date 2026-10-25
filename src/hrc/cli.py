@@ -103,6 +103,23 @@ def _render(cfg, a, preview):
         for fmt in formats:
             rdir = render.render_reel(cfg, reel, words, manifest, preview=preview, force=a.force, fmt=fmt)
             export.export_reel(cfg, reel, rdir, preview=preview, langs=(a.langs.split(",") if a.langs else None))
+            if not preview and fmt == "reel" and cfg.at("export.resolve_pack", True):
+                from . import resolve
+                for lang in (a.resolve_langs.split(",") if getattr(a, "resolve_langs", None)
+                             else cfg.at("export.resolve_langs", ["te"])):
+                    resolve.build_pack(cfg, reel, rdir, lang)
+
+
+def cmd_resolve(cfg, a):
+    """Rebuild the layered Resolve pack from an existing render (after editing fonts or colours)."""
+    from . import plan as planlib, resolve, render
+    plan = planlib.approved(cfg)
+    for reel in planlib.selected(plan, a.reel):
+        rdir = cfg.dir("renders") / (reel["id"] + render.suffix("reel", False))
+        if not (rdir / "render.json").exists():
+            raise FileNotFoundError(f"{reel['id']} is not rendered yet. Run `hrc render --reel {reel['id']}` first.")
+        for lang in (a.lang.split(",") if a.lang else cfg.at("export.resolve_langs", ["te"])):
+            resolve.build_pack(cfg, reel, rdir, lang)
 
 
 def cmd_render(cfg, a):
@@ -157,7 +174,10 @@ def main(argv=None):
                         ("preview", cmd_preview, "fast 540x960 draft (Telugu subtitles by default)")):
         sp = add(name, fn, h, reel=True, force=True)
         sp.add_argument("--langs", help="comma separated, e.g. te,en")
+        sp.add_argument("--resolve-langs", dest="resolve_langs", help="languages for the layered Resolve pack (default: export.resolve_langs)")
         sp.add_argument("--formats", help="reel,landscape,portrait (default: reel.formats in config.yaml; reel = landscape video in a 9:16 frame)")
+    sp = add("resolve", cmd_resolve, "rebuild the layered DaVinci Resolve pack (every graphic, caption, sound on its own track)", reel=True)
+    sp.add_argument("--lang", help="comma separated languages, e.g. te,en (default: export.resolve_langs)")
     sp = add("qa", cmd_qa, "write qa_report.md", reel=True)
     sp.add_argument("--preview", action="store_true")
     sp = add("sample", cmd_sample, "cut a short sample workspace into sample/")

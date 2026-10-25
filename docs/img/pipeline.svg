@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="934" viewBox="0 0 900 934" font-family="Helvetica, Arial, sans-serif">
+<rect width="900" height="934" rx="18" fill="#0F1115"/>
+<text x="40" y="52" fill="#fff" font-size="28" font-weight="700">From podcast to finished reels</text>
+<g font-size="13" font-weight="700">
+<rect x="560" y="34" width="16" height="16" rx="4" fill="#E8252B"/><text x="582" y="47" fill="#ccc">You</text>
+<rect x="670" y="34" width="16" height="16" rx="4" fill="#1F6FEB"/><text x="692" y="47" fill="#ccc">Your Mac</text>
+<rect x="780" y="34" width="16" height="16" rx="4" fill="#8250DF"/><text x="802" y="47" fill="#ccc">Claude</text>
+</g>
+<line x1="66" y1="132" x2="66" y2="162" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="110" r="22" fill="#E8252B"/><text x="66" y="117" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">1</text>
+<rect x="104" y="84" width="760" height="54" rx="12" fill="#1A1D24" stroke="#E8252B" stroke-opacity="0.5"/>
+<text x="124" y="107" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">Put the episode in place</text>
+<text x="124" y="128" fill="#AAB" font-size="14">Video in Master copy, SRT in SUbtitles_Srt, paths in config.yaml</text>
+<text x="848" y="107" fill="#E8252B" font-size="12" font-weight="700" text-anchor="end">YOU</text>
+<line x1="66" y1="206" x2="66" y2="236" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="184" r="22" fill="#1F6FEB"/><text x="66" y="191" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">2</text>
+<rect x="104" y="158" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="181" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc ingest</text>
+<text x="124" y="202" fill="#AAB" font-size="14">Reads subtitles, finds camera changes and faces</text>
+<text x="848" y="181" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<line x1="66" y1="280" x2="66" y2="310" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="258" r="22" fill="#1F6FEB"/><text x="66" y="265" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">3</text>
+<rect x="104" y="232" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="255" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc align</text>
+<text x="124" y="276" fill="#AAB" font-size="14">Exact time of every spoken word</text>
+<text x="848" y="255" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<line x1="66" y1="354" x2="66" y2="384" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="332" r="22" fill="#1F6FEB"/><text x="66" y="339" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">4</text>
+<rect x="104" y="306" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="329" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc select prepare</text>
+<text x="124" y="350" fill="#AAB" font-size="14">Writes the transcript brief for Claude</text>
+<text x="848" y="329" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<line x1="66" y1="428" x2="66" y2="458" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="406" r="22" fill="#8250DF"/><text x="66" y="413" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">5</text>
+<rect x="104" y="380" width="760" height="54" rx="12" fill="#1A1D24" stroke="#8250DF" stroke-opacity="0.5"/>
+<text x="124" y="403" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">Pick the reels</text>
+<text x="124" y="424" fill="#AAB" font-size="14">Claude writes reels_plan.json: cuts, headlines, graphics</text>
+<text x="848" y="403" fill="#8250DF" font-size="12" font-weight="700" text-anchor="end">CLAUDE</text>
+<line x1="66" y1="502" x2="66" y2="532" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="480" r="22" fill="#E8252B"/><text x="66" y="487" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">6</text>
+<rect x="104" y="454" width="760" height="54" rx="12" fill="#1A1D24" stroke="#E8252B" stroke-opacity="0.5"/>
+<text x="124" y="477" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc select check + hrc approve</text>
+<text x="124" y="498" fill="#AAB" font-size="14">You read the list and approve. Nothing renders before this</text>
+<text x="848" y="477" fill="#E8252B" font-size="12" font-weight="700" text-anchor="end">YOU</text>
+<line x1="66" y1="576" x2="66" y2="606" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="554" r="22" fill="#8250DF"/><text x="66" y="561" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">7</text>
+<rect x="104" y="528" width="760" height="54" rx="12" fill="#1A1D24" stroke="#8250DF" stroke-opacity="0.5"/>
+<text x="124" y="551" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc translate prepare / build</text>
+<text x="124" y="572" fill="#AAB" font-size="14">Claude translates, the Mac builds subtitle files</text>
+<text x="848" y="551" fill="#8250DF" font-size="12" font-weight="700" text-anchor="end">CLAUDE+YOUR MAC</text>
+<line x1="66" y1="650" x2="66" y2="680" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="628" r="22" fill="#1F6FEB"/><text x="66" y="635" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">8</text>
+<rect x="104" y="602" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="625" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc assets</text>
+<text x="124" y="646" fill="#AAB" font-size="14">Downloads the photos for the graphics</text>
+<text x="848" y="625" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<line x1="66" y1="724" x2="66" y2="754" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="702" r="22" fill="#1F6FEB"/><text x="66" y="709" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">9</text>
+<rect x="104" y="676" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="699" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc render</text>
+<text x="124" y="720" fill="#AAB" font-size="14">Reels in 5 languages + the Resolve pack</text>
+<text x="848" y="699" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<line x1="66" y1="798" x2="66" y2="828" stroke="#333" stroke-width="3"/>
+<circle cx="66" cy="776" r="22" fill="#1F6FEB"/><text x="66" y="783" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">10</text>
+<rect x="104" y="750" width="760" height="54" rx="12" fill="#1A1D24" stroke="#1F6FEB" stroke-opacity="0.5"/>
+<text x="124" y="773" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">hrc qa</text>
+<text x="124" y="794" fill="#AAB" font-size="14">Checks length, loudness, faces, captions</text>
+<text x="848" y="773" fill="#1F6FEB" font-size="12" font-weight="700" text-anchor="end">YOUR MAC</text>
+<circle cx="66" cy="850" r="22" fill="#E8252B"/><text x="66" y="857" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">11</text>
+<rect x="104" y="824" width="760" height="54" rx="12" fill="#1A1D24" stroke="#E8252B" stroke-opacity="0.5"/>
+<text x="124" y="847" fill="#fff" font-size="17" font-weight="700" font-family="Menlo, monospace">Polish in Resolve</text>
+<text x="124" y="868" fill="#AAB" font-size="14">Import the .fcpxml, edit any layer, export</text>
+<text x="848" y="847" fill="#E8252B" font-size="12" font-weight="700" text-anchor="end">YOU</text>
+</svg>

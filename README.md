@@ -1,118 +1,163 @@
 # HemuReelCreations (HRC)
 
-Turns a finished Telugu podcast episode of **The Hemu Mark Reality Check** into 9:16 reels
-(1080x1920, 30 fps, 30–60 s), each exported with karaoke subtitles in Telugu, Hindi, English,
-Tamil and Kannada. Audio always stays Telugu.
+Turns a finished Telugu episode of **The Hemu Mark Reality Check** into ten 9:16 reels (1080x1920,
+30 fps, at most 60 s each). Every reel is exported with karaoke captions in **Telugu, Hindi,
+English, Tamil and Kannada**, plus a **layered DaVinci Resolve project** in which every graphic,
+caption, logo and sound sits on its own track. The audio always stays Telugu.
 
-## Setup (once)
+![What a reel looks like](docs/img/reel_layout.svg)
+
+---
+
+## The whole process on one page
+
+![From podcast to finished reels](docs/img/pipeline.svg)
+
+| # | Who | What you type (in Terminal) | What happens | How long |
+|---|---|---|---|---|
+| 0 | You | `cd ~/HemuReelCreations && source .venv/bin/activate` | Opens the HRC workspace. **Do this every time you open a new Terminal.** | 1 s |
+| 1 | You | edit `config.yaml` → `input.video`, `input.srt` | Tells HRC which episode to use | 1 min |
+| 2 | Mac | `hrc ingest` | Reads the subtitles, finds camera changes and faces | 5–10 min |
+| 3 | Mac | `hrc align` | Finds the exact time of every spoken word | ~10 min |
+| 4 | Mac | `hrc select prepare` | Writes the transcript brief into `cache/select/` | 10 s |
+| 5 | Claude | (in the project chat) | Claude reads the brief and writes `reels_plan.json`: cuts, headlines, graphics, which moments get a sound | — |
+| 6 | You | `hrc select check` then `hrc approve` | Checks lengths and snaps cuts between words. **Nothing renders before you approve.** | 10 s |
+| 7 | Mac + Claude | `hrc translate prepare` → Claude fills translations → `hrc translate build` | Subtitle files for all 5 languages in `subs/` | — |
+| 8 | Mac | `hrc assets` | Downloads the photos the graphics use (free sources, licence noted) | 1–2 min |
+| 9 | Mac | `hrc render` | Renders every reel in 5 languages + the Resolve pack | ~3–5 min per reel |
+| 10 | Mac | `hrc qa` | Checks length, loudness, captions, faces → `output/qa_report.md` | 1 min |
+| 11 | You | DaVinci Resolve | Import the layered timeline, polish, export (see below) | your call |
+
+Work on some reels only: add `--reel reel02,reel05`. Redo a step from scratch: add `--force`.
+Every step writes plain files you can open and edit; running a step again skips work whose inputs
+didn't change.
+
+### First-time setup (once per Mac)
 
 ```bash
 cd ~/HemuReelCreations
-bash setup_mac.sh          # ffmpeg, venv, Python packages, then `hrc doctor`
+bash setup_mac.sh            # ffmpeg, Python packages, fonts check, then `hrc doctor`
 source .venv/bin/activate
+hrc doctor                   # every line should say OK
 ```
 
-Set the episode in `config.yaml` → `input.video` and `input.srt`.
-Put royalty-free music in `assets/music/<mood>/` (moods: inspirational, tense, emotional, funny, calm, energetic).
-Your own SFX go in `assets/sfx/<whoosh|hit|riser|pop|glitch|impact|swish>/`; otherwise HRC makes its own.
+Music: put royalty-free tracks in `assets/music/<mood>/` (moods: inspirational, tense, emotional,
+funny, calm, energetic). Without music the reels render with speech and sound effects only.
+Your own sound effects go in `assets/sfx/<kind>/` and are used instead of HRC's built-in ones.
 
-## First test (3-minute sample)
+---
+
+## What you get
+
+```
+output/
+  qa_report.md                       checks for every file, with frame grabs
+  reel02/
+    reel02_te.mp4  reel02_hi.mp4  reel02_en.mp4  reel02_ta.mp4  reel02_kn.mp4   ready to post
+    reel02_clean.mp4                 no captions
+    reel02_mix.wav                   the finished sound
+    resolve_te/                      the layered Resolve project (see below)
+```
+
+---
+
+## Polishing a reel in DaVinci Resolve
+
+![One track per element](docs/img/resolve_tracks.svg)
+
+**Import**
+
+1. Open DaVinci Resolve and create or open a project. Set the project to 1080x1920, 30 fps:
+   *File → Project Settings → Master Settings → Timeline resolution: 1080 x 1920 (custom), 30 fps*.
+2. *File → Import → Timeline…* and pick `output/<reel>/resolve_te/<reel>_te.fcpxml`.
+3. When Resolve asks, leave **"Automatically import source clips into media pool"** ticked.
+   All media is in the `media/` folder next to the .fcpxml, so nothing goes offline.
+4. Open `EDIT_SHEET.md` in the same folder. It lists every track and clip with its time, text,
+   animation and sound.
+
+**What is on each track**
+
+| Track | Contents | Things you can do |
+|---|---|---|
+| V1 | Podcast video, cut at every join; the ending stamp after it | Trim, reorder, put a Resolve transition on any edit point (markers name the suggested one), colour grade |
+| V2 | Each graphic alone, with transparency (`gfx/gNN.mov`) | Move, scale, retime, fade, change opacity, delete or replace it |
+| V3 | You, cut out from the background, only while a graphic is behind you | Delete one to bring that graphic in front of you |
+| V4 | Graphic parts that sit in front of you (counters) | Same as V2 |
+| V5 | Corner logo (the white stamp) | Move, resize, change opacity, turn off |
+| V6 | Headline above the video, as a picture | Turn off (select it, press **D**) when you use V7 instead |
+| V7 | Headline as Resolve text, **off** by default | Select it, press **D** to turn it on, then change words, font, size and colour in the Inspector |
+| V8 | Karaoke captions with transparency | Move or turn off. For captions you style yourself: *File → Import → Subtitle…* and pick `media/captions_te.srt` |
+| A1 | Speech (cleaned) | Level, EQ, noise reduction |
+| A2 | Music, already ducked under the speech | Level, swap the song |
+| A3 and up | One clip per sound effect, gain already set | Move, change volume, delete, or drag in your own sound |
+
+**Changing fonts and colours of the baked layers** (captions, graphics text, headline picture):
+edit `config.yaml` (fonts under `subtitles.fonts`, colours under `project.brand_colors`, headline
+size under `layout.reel`), then rebuild just that pack in about a minute:
 
 ```bash
-hrc sample --start 00:36:00 --minutes 3          # the "3000 rejections" part of HemuXSrinadh_Part1
-cd sample
-cp ../sample_plan/reels_plan.json .              # sample reel picked + translated by Claude
-hrc ingest && hrc align
-hrc select check && hrc approve
-hrc translate prepare && hrc translate build
-hrc assets                                       # downloads the images Claude picked (Wikimedia etc.)
-hrc preview --langs te,en                       # output/sample01/*_preview.mp4
-hrc render && hrc qa                            # full quality, 5 languages, reel layout (landscape video in 9:16)
+hrc resolve --reel reel02 --lang te       # or --lang te,en for several languages
 ```
 
-## Commands, in order
+Re-import the new .fcpxml (Resolve keeps your old timeline, so you can compare).
 
-| Step | Command | What it does |
+**Levels:** the separate tracks are not loudness-matched like the finished `.mp4`. When you're done,
+select all audio clips and use *Normalize Audio Levels* (−14 LUFS for Instagram and YouTube), or
+put a limiter on the main bus.
+
+**Export:** *Deliver → Custom*, H.264 or H.265, 1080x1920, 30 fps, 12–16 Mbit/s, AAC 320 kbit/s.
+
+By default the Resolve pack is built in Telugu only (about 0.5–1 GB per reel). Add languages in
+`config.yaml` → `export.resolve_langs`, or for one reel: `hrc resolve --reel reel02 --lang en`.
+
+---
+
+## How the look is built (and the settings that control it)
+
+| Element | What HRC does | Setting in `config.yaml` |
 |---|---|---|
-| check | `hrc doctor` | ffmpeg, libass, VideoToolbox, MPS, fonts, inputs |
-| sample | `hrc sample --start 00:20:00 --minutes 3` | makes `sample/` with a 3-minute cut, then use `hrc --config sample/config.yaml …` |
-| A | `hrc ingest` | SRT → `cache/cues.json`, audio, camera cuts, face positions |
-| B | `hrc align` | word timings → `cache/words.json`; doubtful spots → `cache/align_review.json` |
-| C | `hrc select prepare` | transcript chunks + brief in `cache/select/`; Claude writes `reels_plan.json` |
-| C | `hrc select check` then `hrc approve` | snaps cuts to word gaps, checks lengths; **nothing renders until you approve** |
-| D | `hrc translate prepare` → (Claude fills translations) → `hrc translate build` | `subs/<reel>_<lang>.json` |
-| E | `hrc assets` | images for visual moments → `assets/manifest.json` with source + licence |
-| preview | `hrc preview --reel reel01` | 540x960 draft with Telugu subs in a few minutes |
-| F–H | `hrc render` | matte, GFX, transitions, SFX, music, 5 languages + clean + FCPXML |
-| QA | `hrc qa` | `qa_report.md` + frame grabs per language |
+| Layout | Landscape video in a 9:16 frame, headline bar above, captions below | `layout.reel.*` |
+| Framing | Steady "tripod" framing that follows the face slowly, punch-in zooms on emphasis words | `reframe.*` |
+| Clean cuts | A camera angle never flashes on screen for less than 0.4 s; the crop changes on the exact frame | `reframe.min_shot_sec` |
+| Cut-out | Apple Vision person segmentation (RVM or MediaPipe as fallbacks) so graphics sit behind you | `matte.engine` |
+| Graphics | Photo backgrounds, counters (₹/$/€ count up), stacked words with typewriter, glitch or fade | per moment in `reels_plan.json` |
+| Captions | 1–2 lines, active word in yellow, key words in red, never blink between lines | `subtitles.*` |
+| Sound | Speech cleanup, ducked music, sound effects only on 2–4 key moments, −14 LUFS | `audio.*` |
+| Brand | Your round stamp as the corner logo, and a stamp slam with sound at the end | `project.logo*`, `project.end_stamp_size` |
 
-Add `--reel reel01,reel03` to work on some reels, `--force` to ignore the cache.
-Every stage writes JSON you can edit; re-running skips work whose inputs didn't change.
+In `reels_plan.json` each visual moment can carry:
+`"anim"` (typewriter, glitch, fade, zoom, slide), `"style"` (backdrop or sprite for pictures),
+`"sfx": true` (make sure it gets a sound) or `"sfx": false` (keep it silent).
+A reel can switch off its ending with `"outro": false`.
 
-## Output
+---
 
-`output/<reel>/<reel>_<lang>.mp4` (te, hi, en, ta, kn), `<reel>_clean.mp4` (no subtitles),
-`<reel>_mix.wav`, and `<reel>.fcpxml` (import in DaVinci Resolve: File → Import → Timeline).
+## When something goes wrong
 
-## How the look is built
+| You see | Do this |
+|---|---|
+| `command not found: hrc` | Run `source .venv/bin/activate` inside `~/HemuReelCreations` first |
+| "The reel plan is not approved yet" | Run `hrc select check` and `hrc approve` |
+| "no hi subtitles yet" | Run `hrc translate build` (translations must be filled first) |
+| A reel is over 60 s | Trim a segment in `reels_plan.json`, then `hrc select check && hrc approve` |
+| Resolve shows clips as offline | Keep `media/` next to the .fcpxml; or right-click the bin → *Relink Selected Clips* and pick `media/` |
+| A graphic covers the face | Delete its V3 cut-out clip back in, or move the V2 clip; check `qa_report.md` |
+| Telugu letters look broken in graphics | `brew install libraqm`, then `pip install --force-reinstall pillow` |
+| No music | Add files to `assets/music/<mood>/` and render again |
 
-1. **Reframe**: face found 5×/s, smoothed with a One-Euro filter, crop resets on each camera switch; punch-in zoom on emphasis words.
-2. **Matte**: Robust Video Matting on MPS (MediaPipe fallback) with temporal smoothing.
-3. **GFX behind you**: each visual moment appears on the frame its word is spoken, animates in (pop/slide/glitch/zoom) with a matching SFX, holds, animates out. Anchored to your tracked head: beside the head with parallax, big words behind the head with a glow, counters, arrows, map pins, B-roll on top. One major element at a time.
-4. **Transitions** at each cut, chosen by mood, never the same twice in a row, each with its own SFX.
-5. **Audio**: speech cleanup, music ducked under speech (sidechain), SFX, loudness −14 LUFS.
-6. **Subtitles**: ASS rendered by libass + HarfBuzz with Noto Sans fonts. Word-by-word highlight with a pop, emphasis words in the accent colour, kept out of the bottom 22% and right edge.
+## Limits
 
-## What it can't do well (hand-polish in Resolve)
+- Translated captions are timed across each line, so they are close but not word-exact; Telugu is word-exact.
+- Two people in one wide shot: the framing follows the biggest, steadiest face.
+- Auto graphics are clean templates, not hand-made motion design. Polish your best reels in Resolve.
+- Web photos come from free sources (Openverse, Wikimedia). Anything flagged ⚠ in
+  `assets/manifest.json` (logos, news, film stills, people) needs your call before posting.
+- Hair edges can shimmer on fast movement; the matte flicker score is in `qa_report.md`.
 
-- Two people in one wide shot: the crop follows the biggest/steadiest face, not necessarily the speaker.
-- Translated karaoke timing is spread across each chunk, so it is close but not word-exact.
-- Auto GFX are clean templates, not designer motion graphics. Polish your best 2–3 reels by hand.
-- Hair edges on fast movement may shimmer; check the matte flicker score in `qa_report.md`.
-- No speed ramps or true match cuts yet. Planar tracking for screen replacement is not implemented.
-- Web images: free sources only by default; anything flagged ⚠ (logos, news, film stills, people) needs your call.
+## Version history
 
-## Reel layout (v0.3)
-
-The default format is `reel`. It is a 9:16 frame:
-
-- A **headline** at the top (`headline:` in the reel plan, one per language). Words in `*stars*` turn red.
-- The **landscape video** as a wide box in the middle. Tracking is steady, and the speaker is cut out.
-- **Karaoke captions** in the black area under the video, so they never cover a face.
-
-At key moments, a **photo replaces the wall behind the speaker**. Big stacked words appear beside them: white, with the `*key word*` large and red. Photos (JPG) become backgrounds by default. Icons and logos (PNG/SVG) float as pictures. You can force either with `style: backdrop` or `style: sprite` on a visual moment.
-
-Other formats are still available: `hrc render --formats landscape` gives a plain 16:9 file, and `--formats portrait` gives the face-tracked 9:16 crop.
-
-## Cinematic polish (v0.4)
-
-- **No opening hook card** by default. A reel can opt back in with `"show_context_card": true`.
-- **Text animations** (set `anim:` on a visual moment, or let HRC choose):
-  - `typewriter`: letters type in with a cursor and key clicks, in the Special Elite font
-  - `glitch`: RGB split and torn slices, with a soft digital stutter
-  - `fade`: fades up and rises, with a shimmer
-  - `zoom`: settles in like a camera push
-  - `slide`: moves in from the side
-  Every element fades out.
-- **Money counters**: `value: "₹1,50,000"`, `"$3000"` or `"€1,200"` counts up with ticks and a chime. Currency symbols drift up behind it, and ₹ amounts use Indian digit grouping.
-- **SFX**: rebuilt cinematic library (soft whooshes, deep booms, typewriter keys, money ticks, shimmer, gentle glitches). Each sound is matched to its animation and mixed lower. Your own files in `assets/sfx/<type>/` still win.
-- **Apple Vision cut-out**: on a Mac, `matte.engine: auto` compiles a small Swift helper (`src/hrc/vision_matte.swift`) on first use and uses Apple's person segmentation at accurate quality. It falls back to RVM if the helper can't be built.
-
-## Final polish (v0.5)
-
-- **Clean cuts.** Every camera switch is found on the exact frame (the crop switches on the same
-  frame as the picture), and any camera angle that would flash on screen for less than
-  `reframe.min_shot_sec` (0.4 s) is removed. Graphics that would fade out just after a camera
-  switch now end exactly on the switch. Segment joins use calm editor-style cuts
-  (`zoom_punch`, `hard`, `whip_pan`); the flashier ones are still available in `transitions.library`.
-- **Steady captions.** A caption stays on screen through short pauses (under `subtitles.hold_gap_sec`)
-  and hands straight over to the next one, so there is never a blank frame. It fades in softly only
-  after a real pause.
-- **Sound only on key moments.** A reel gets at most `audio.sfx_max` sound effects (4), at least
-  `audio.sfx_min_gap` seconds apart (5 s): big numbers and photo backgrounds first. Mark a visual
-  moment with `"sfx": true` to make sure it gets a sound, or `"sfx": false` to keep it silent.
-  Plain text pop-ups, typewriter keys and transitions are silent unless marked.
-- **Brand stamp.** The round "THE HEMU MARK" stamp (`assets/brand/hemu_mark_stamp.png`) sits in the
-  top-right corner, recoloured white so it reads on dark video. Every reel ends with a 1.8 s outro:
-  the picture blurs and dims, the stamp slams into the centre of the screen with a small shake, an
-  ink ring and flecks, and a firm but soft stamp sound. Turn it off for one reel with `"outro": false`.
+- **v0.6** Layered DaVinci Resolve pack (`hrc resolve`), illustrated README, 10 reels from HemuXSrinadh_Part1.
+- **v0.5** Clean camera cuts, steady captions, sound only on key moments, brand stamp logo and ending stamp.
+- **v0.4** Typewriter, glitch and fade text, money counters, softer cinematic sounds, Apple Vision cut-out, no opening text card.
+- **v0.3** Reel layout: landscape video in a 9:16 frame with headline and captions, photo backgrounds behind the speaker.
+- **v0.2** Steady framing, flicker-free 1–2 line captions, portrait and landscape formats.

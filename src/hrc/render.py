@@ -577,7 +577,7 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     speech_track(cfg, reel, speech)
     used = audio.mix(cfg, speech, duration, sfx_events, reel.get("mood", "inspirational"), rdir / "mix.wav", seed)
     write_json(rdir / "render.json", {"reel": reel["id"], "format": fmt, "size": [FW, FH], "video_box": list(box),
-                                      "duration": duration, "outro_sec": planlib.outro_sec(reel), "gfx": events,
+                                      "seed": seed, "duration": duration, "outro_sec": planlib.outro_sec(reel), "gfx": events,
                                       **comp, "audio": used, "matte": mres})
     log.info("%s: picture and sound ready (%d transitions, %d SFX, music: %s).", reel["id"],
              len(comp["transitions"]), len(used["sfx"]), Path(used["music"]).name if used["music"] else "none")

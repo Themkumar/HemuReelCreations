@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="786" viewBox="0 0 800 786" font-family="Helvetica, Arial, sans-serif">
+<rect width="800" height="786" rx="18" fill="#0F1115"/>
+<g transform="translate(20,20)"><rect width="420" height="746" rx="14" fill="#000" stroke="#333"/>
+<text x="210.0" y="124.66666666666666" fill="#fff" font-size="30" font-weight="900" text-anchor="middle" font-family="Impact, Anton, sans-serif">3000 <tspan fill="#E8252B">REJECTIONS</tspan></text>
+<text x="210.0" y="160.66666666666666" fill="#fff" font-size="30" font-weight="900" text-anchor="middle" font-family="Impact, Anton, sans-serif">IN ITALY</text>
+<rect x="0" y="186.66666666666666" width="420" height="300.22222222222223" fill="#3B4252"/>
+<rect x="0" y="186.66666666666666" width="231.00000000000003" height="300.22222222222223" fill="#6B5B3E" opacity="0.8"/>
+<text x="84.0" y="321.76666666666665" fill="#fff" font-size="34" font-weight="900" text-anchor="middle" font-family="Impact, Anton, sans-serif">3,000</text>
+<text x="84.0" y="345.76666666666665" fill="#FFD400" font-size="15" font-weight="700" text-anchor="middle">REJECTIONS</text>
+<circle cx="260.4" cy="300.7511111111111" r="40" fill="#D9A47A"/><rect x="190.39999999999998" y="351.7888888888889" width="140" height="135.1" rx="30" fill="#25324A"/>
+<circle cx="386" cy="220.66666666666666" r="20" fill="none" stroke="#fff" stroke-width="3"/><text x="386" y="224.66666666666666" fill="#fff" font-size="8" font-weight="700" text-anchor="middle">HEMU</text>
+<text x="210.0" y="538.8888888888889" fill="#fff" font-size="26" font-weight="700" text-anchor="middle">రిజెక్షన్ <tspan fill="#FFD400">ఫోల్డర్</tspan></text>
+</g>
+<line x1="444" y1="156.66666666666666" x2="480" y2="156.66666666666666" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="156.66666666666666" r="4" fill="#E8252B"/>
+<text x="490" y="154.66666666666666" fill="#fff" font-size="16" font-weight="700">Headline bar</text><text x="490" y="173.66666666666666" fill="#AAB" font-size="13">white + red key words (Anton / Noto Bold)</text>
+<line x1="444" y1="240.66666666666666" x2="480" y2="240.66666666666666" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="240.66666666666666" r="4" fill="#E8252B"/>
+<text x="490" y="238.66666666666666" fill="#fff" font-size="16" font-weight="700">Corner logo</text><text x="490" y="257.66666666666663" fill="#AAB" font-size="13">your stamp, white</text>
+<line x1="444" y1="332.76" x2="480" y2="332.76" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="332.76" r="4" fill="#E8252B"/>
+<text x="490" y="330.76" fill="#fff" font-size="16" font-weight="700">Graphic behind the speaker</text><text x="490" y="349.76" fill="#AAB" font-size="13">photo backdrop, counters, stacked words</text>
+<line x1="444" y1="431.83333333333337" x2="480" y2="431.83333333333337" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="431.83333333333337" r="4" fill="#E8252B"/>
+<text x="490" y="429.83333333333337" fill="#fff" font-size="16" font-weight="700">Video box</text><text x="490" y="448.83333333333337" fill="#AAB" font-size="13">landscape podcast, steady framing</text>
+<line x1="444" y1="552.8888888888889" x2="480" y2="552.8888888888889" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="552.8888888888889" r="4" fill="#E8252B"/>
+<text x="490" y="550.8888888888889" fill="#fff" font-size="16" font-weight="700">Karaoke captions</text><text x="490" y="569.8888888888889" fill="#AAB" font-size="13">1-2 lines, active word in yellow</text>
+<line x1="444" y1="706" x2="480" y2="706" stroke="#E8252B" stroke-width="2"/><circle cx="444" cy="706" r="4" fill="#E8252B"/>
+<text x="490" y="704" fill="#fff" font-size="16" font-weight="700">Ending</text><text x="490" y="723" fill="#AAB" font-size="13">stamp slams in the centre + stamp sound</text>
+</svg>
