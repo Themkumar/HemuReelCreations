@@ -32,12 +32,14 @@ def clamp01(x: float) -> float:
 
 
 # ---------- fonts and sprites ----------
-def font_for(text: str, size: int, weight: int = 900) -> ImageFont.FreeTypeFont:
+def font_for(text: str, size: int, weight: int = 900, display: bool = False) -> ImageFont.FreeTypeFont:
     name = "NotoSans"
     for (lo, hi), fam in SCRIPT_FONT:
         if any(lo <= ord(c) <= hi for c in text):
             name = fam
             break
+    if display and name == "NotoSans" and (FONT_DIR / "Anton-400.ttf").exists():
+        name, weight = "Anton", 400  # tall condensed headline face for Latin text
     path = FONT_DIR / f"{name}-{weight}.ttf"
     if not path.exists():
         path = FONT_DIR / f"{name}-700.ttf"
@@ -52,15 +54,16 @@ def hex_rgb(h: str) -> tuple[int, int, int]:
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), glow=None, max_w: int = 0) -> np.ndarray:
-    font = font_for(text, size)
+def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), glow=None, max_w: int = 0,
+                display: bool = False, box=None) -> np.ndarray:
+    font = font_for(text, size, display=display)
     # shrink to fit width
     while max_w and size > 24:
         bbox = font.getbbox(text, stroke_width=size // 14)
         if bbox[2] - bbox[0] <= max_w:
             break
         size = int(size * 0.9)
-        font = font_for(text, size)
+        font = font_for(text, size, display=display)
     sw = max(2, size // 14)
     bbox = font.getbbox(text, stroke_width=sw)
     pad = size // 2
@@ -68,6 +71,9 @@ def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), gl
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     org = (pad - bbox[0], pad - bbox[1])
+    if box:  # solid highlight box behind the word (news-style)
+        m = size // 8
+        d.rectangle([pad - m, pad - m, w - pad + m, h - pad + m], fill=(*box, 235))
     if glow:
         g = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         ImageDraw.Draw(g).text(org, text, font=font, fill=(*glow, 255), stroke_width=sw * 2, stroke_fill=(*glow, 255))
@@ -265,6 +271,7 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
             "t_in": round(t_in, 3), "t_out": round(min(duration, max(hit["end"] + 0.6, t_in + hold)), 3),
             "text": vm.get("label") or vm["phrase"], "value": vm.get("value"),
             "file": asset.get("file"), "label": vm.get("label") if kind in ("image", "broll") else None, "sfx_in": SFX_FOR_ANIM[anim], "major": True,
+            "style": vm.get("style", "auto"), "original": asset.get("original"),
         })
     events.sort(key=lambda e: e["t_in"])
     for a, b in zip(events, events[1:]):  # no overlap between major elements
@@ -300,10 +307,10 @@ class GfxRenderer:
                 mw, mh = (W * 0.5, self.H * 0.3) if not self.landscape else (W * 0.3, self.H * 0.55)
             spr = image_sprite(Path(ev["file"]), int(mw), int(mh))
             if ev.get("label"):
-                lab = text_sprite(ev["label"], int(self.U * 0.075), glow=self.c2, max_w=int(mw))
+                lab = text_sprite(ev["label"].replace("*", ""), int(self.U * 0.075), glow=self.c2, max_w=int(mw))
                 spr = _stack(spr, lab)
         elif t == "text":
-            spr = text_block_sprite(ev["text"], int(self.U * 0.3), int(W * 0.94), fill=self.c1, glow=self.c2)
+            spr = text_block_sprite(ev["text"].replace("*", ""), int(self.U * 0.3), int(W * 0.94), fill=self.c1, glow=self.c2)
         elif t == "arrow":
             spr = arrow_sprite(int(self.U * 0.28), self.c1)
         elif t == "map":
@@ -340,6 +347,28 @@ class GfxRenderer:
         hx, hy, hs = head["x"], head["y"], max(head["size"], U * 0.12)
         t = ev["type"]
         lay: dict = {"mode": "free"}
+        if self.landscape and t in ("image", "broll", "text"):
+            side = -1 if hx > W / 2 else 1  # the open side of the frame
+            room = (hx - hs * 0.8) if side < 0 else (W - hx - hs * 0.8)
+            room = max(room, W * 0.3)
+            label = ev.get("label") if t != "text" else ev["text"]
+            if t != "text" and ev.get("file") and self._wants_backdrop(ev):
+                lay["backdrop"] = backdrop_image(Path(ev.get("original") or ev["file"]), W, H, self.c2)
+            elif t != "text" and ev.get("file"):
+                lay["img"] = trim(image_sprite(Path(ev["file"]), int(room * 0.85), int(H * 0.42)))
+            stack = stack_text(label or "", int(min(room * 0.9, W * 0.46)), int(H * (0.42 if "img" in lay else 0.7)),
+                               U, self.c2) if label else None
+            spr = stack
+            if "img" in lay:
+                spr = _stack(lay["img"], stack) if stack is not None else lay["img"]
+            if spr is None:
+                spr = np.zeros((2, 2, 4), np.uint8)
+            cx = (hx - hs * 0.8) / 2 if side < 0 else hx + hs * 0.8 + (W - hx - hs * 0.8) / 2
+            cx = min(max(cx, spr.shape[1] / 2 + W * 0.03), W - spr.shape[1] / 2 - W * 0.03)
+            cy = min(max(H * 0.5, spr.shape[0] / 2 + H * 0.05), H - spr.shape[0] / 2 - H * 0.05)
+            lay.update(mode="side", spr=spr, cx=cx, cy=cy)
+            self.layouts[ev["id"]] = lay
+            return lay
         if not self.landscape and ev["anchor"] != "top_split":
             top, bot = self._band(head)
             band = bot - top
@@ -347,7 +376,7 @@ class GfxRenderer:
                 lay["mode"] = "band"
                 if t == "text":
                     # bottom ~25% of the letters tucks behind the hair: the "text behind the person" look
-                    spr = fit_text(ev["text"], int(W * 0.94), band * 1.33, int(U * 0.3), int(U * 0.1),
+                    spr = fit_text(ev["text"].replace("*", ""), int(W * 0.94), band * 1.33, int(U * 0.3), int(U * 0.1),
                                    fill=self.c1, glow=self.c2)
                     lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2)
                 elif t in ("image", "broll") and ev.get("file"):
@@ -406,7 +435,23 @@ class GfxRenderer:
             spr = lay["spr"]
             sh, sw = spr.shape[0] * scale, spr.shape[1] * scale
             num_cy = None
-            if lay["mode"] == "band":
+            if lay.get("backdrop") is not None:  # the picture replaces the wall behind the speaker
+                a_bd = clamp01(local / 0.3) * clamp01(out_left / 0.25)
+                bd = lay["backdrop"]
+                z = 1.0 + 0.05 * clamp01(local / max(0.5, ev["t_out"] - ev["t_in"]))  # slow push-in
+                bh, bw = bd.shape[:2]
+                ch_, cw_ = int(bh / z), int(bw / z)
+                y0, x0 = (bh - ch_) // 2, (bw - cw_) // 2
+                crop = bd[y0:y0 + ch_, x0:x0 + cw_]
+                frame_bd = cv2.resize(crop, (self.W, self.H), interpolation=cv2.INTER_LINEAR).astype(np.float32)
+                layer *= (1 - a_bd)
+                layer += frame_bd * a_bd
+            if lay["mode"] == "side":
+                bob = math.sin(local * 2.0) * self.U * 0.004
+                cx, cy = lay["cx"], lay["cy"] + bob
+                if ev["anim"] == "slide":
+                    dx *= 1 if lay["cx"] > self.W / 2 else -1
+            elif lay["mode"] == "band":
                 bob = math.sin(local * 2.0) * self.U * 0.004
                 cx, cy = lay["cx"], lay["cy"] + bob
                 num_cy = lay.get("num_cy", 0) + bob
@@ -457,6 +502,17 @@ class GfxRenderer:
                 blend(layer, self._label(ev), cx, cy - 110, scale, alpha)
             boxes.append((ev["id"], cx - sw / 2, cy - sh / 2, cx + sw / 2, cy + sh / 2))
         return boxes
+
+    @staticmethod
+    def _wants_backdrop(ev: dict) -> bool:
+        """Photos make good backgrounds; icons and logos (transparent cut-outs) stay as floating pictures."""
+        if ev.get("style") in ("backdrop", "sprite"):
+            return ev["style"] == "backdrop"
+        try:
+            a = np.asarray(Image.open(ev.get("original") or ev["file"]).convert("RGBA"))[..., 3]
+            return (a > 16).mean() > 0.97
+        except Exception:
+            return False
 
     @lru_cache(maxsize=64)
     def _label_cached(self, text: str) -> np.ndarray:
@@ -518,4 +574,70 @@ def _row(left: np.ndarray, right: np.ndarray, gap: int = 18) -> np.ndarray:
     for spr, x in ((left, 0), (right, left.shape[1] + gap)):
         y = (h - spr.shape[0]) // 2
         out[y:y + spr.shape[0], x:x + spr.shape[1]] = spr
+    return out
+
+
+def backdrop_image(path: Path, W: int, H: int, tint=(232, 37, 43)) -> np.ndarray:
+    """A photo filling the frame behind the speaker: cover-cropped, softly blurred and darkened so the
+    speaker and the big words stay the hero (the look of big podcast-clip channels)."""
+    img = np.asarray(Image.open(path).convert("RGB")).astype(np.float32)
+    h, w = img.shape[:2]
+    s = max(W * 1.06 / w, H * 1.06 / h)
+    img = cv2.resize(img, (max(W, int(w * s)), max(H, int(h * s))), interpolation=cv2.INTER_CUBIC)
+    h, w = img.shape[:2]
+    y0, x0 = (h - int(H * 1.06)) // 2, (w - int(W * 1.06)) // 2
+    img = img[max(0, y0):max(0, y0) + int(H * 1.06), max(0, x0):max(0, x0) + int(W * 1.06)]
+    img = cv2.GaussianBlur(img, (0, 0), max(3.0, min(W, H) / 130))
+    lum = img.mean(axis=2, keepdims=True)
+    img = img * 0.55 + lum * 0.15  # a little desaturated
+    img = img * 0.5 + np.array(tint, np.float32)[None, None] * 0.05  # darker, faint brand tint
+    yy, xx = np.ogrid[:img.shape[0], :img.shape[1]]
+    v = 1 - 0.45 * (((xx - img.shape[1] / 2) / (img.shape[1] / 2)) ** 2 + ((yy - img.shape[0] / 2) / (img.shape[0] / 2)) ** 2) / 2
+    return np.clip(img * v[..., None], 0, 255).astype(np.uint8)
+
+
+def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43)) -> np.ndarray:
+    """Stacked kinetic words: short white words, the key word huge in the accent colour.
+    Mark key words with *stars*; otherwise the longest word is the key word."""
+    words = label.split()
+    if not words:
+        return np.zeros((2, 2, 4), np.uint8)
+    marked = [w.startswith("*") and w.endswith("*") for w in words]
+    words = [w.strip("*") for w in words]
+    if not any(marked):
+        k = max(range(len(words)), key=lambda i: len(words[i]))
+        marked = [i == k for i in range(len(words))]
+    # group into lines: key words on their own line, small words joined (max ~12 chars)
+    lines: list[tuple[str, bool]] = []
+    buf: list[str] = []
+    for w, m in zip(words, marked):
+        if m:
+            if buf:
+                lines.append((" ".join(buf), False)); buf = []
+            lines.append((w, True))
+        else:
+            if buf and len(" ".join(buf + [w])) > 12:
+                lines.append((" ".join(buf), False)); buf = []
+            buf.append(w)
+    if buf:
+        lines.append((" ".join(buf), False))
+    lines = lines[:4]
+    scale = 1.0
+    while True:
+        sprs = []
+        for txt, key in lines:
+            size = int(U * (0.26 if key else 0.14) * scale)
+            fill = accent if key else (255, 255, 255)
+            sprs.append(trim(text_sprite(txt if not txt.isascii() else txt.upper(), size, fill=fill,
+                                         stroke=(0, 0, 0), max_w=max_w, display=True), size // 10))
+        h = sum(x.shape[0] for x in sprs)
+        if h <= max_h or scale < 0.45:
+            break
+        scale *= 0.88
+    w = max(x.shape[1] for x in sprs)
+    out = np.zeros((h, w, 4), np.uint8)
+    y = 0
+    for x in sprs:  # left-aligned like the reference edits
+        out[y:y + x.shape[0], :x.shape[1]] = np.maximum(out[y:y + x.shape[0], :x.shape[1]], x)
+        y += x.shape[0]
     return out

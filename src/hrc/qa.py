@@ -22,11 +22,14 @@ def run_stage(cfg, only: str | None = None, preview: bool = False) -> Path:
     for reel in planlib.selected(plan, only):
         odir = cfg.dir("output") / reel["id"]
         rinfos = {}
-        for fmt in ("portrait", "landscape"):
-            rd = cfg.dir("renders") / (reel["id"] + ("_landscape" if fmt == "landscape" else "") + ("_preview" if preview else ""))
+        from .render import suffix
+        for fmt in ("reel", "portrait", "landscape"):
+            rd = cfg.dir("renders") / (reel["id"] + suffix(fmt, preview))
             if (rd / "render.json").exists():
-                rinfos[fmt] = read_json(rd / "render.json")
-        rinfo = rinfos.get("portrait") or rinfos.get("landscape") or {}
+                ri = read_json(rd / "render.json")
+                if ri.get("format", "portrait") == fmt or (fmt == "portrait" and "video_box" not in ri):
+                    rinfos[fmt] = ri
+        rinfo = rinfos.get("reel") or rinfos.get("portrait") or rinfos.get("landscape") or {}
         lines += [f"## {reel['id']} - {reel.get('title', '')}", ""]
         files = sorted(f for f in odir.glob(f"{reel['id']}_*.mp4") if f.stem.endswith("_preview") == preview)
         if not files:

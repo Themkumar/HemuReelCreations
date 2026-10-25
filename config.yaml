@@ -3,7 +3,7 @@ project:
   name: HemuReelCreations
   channel_name: "The Hemu Mark"
   logo: assets/brand/hemu_mark_logo.png
-  brand_colors: ["#FFD400", "#FF3B5C"]   # [highlight word colour, accent colour]
+  brand_colors: ["#FFD400", "#E8252B"]   # [highlight word colour, accent colour (headline keywords, key words)]
 
 input:
   video: "/Users/hemu/Desktop/Master copy/HemuXSrinadh_Part1.mp4"
@@ -27,7 +27,17 @@ reel:
   count_min: 10
   count_max: 10
   languages: [te, hi, en, ta, kn]
-  formats: [portrait, landscape]   # portrait = 9:16 1080x1920, landscape = 16:9 1920x1080
+  formats: [reel]   # reel = 9:16 frame with the landscape video as a wide box (headline above, captions below)
+                    # also possible: landscape (plain 16:9 1920x1080), portrait (face-tracked 9:16 crop)
+
+layout:
+  reel:
+    video_aspect: 1.4       # width / height of the video box (16:9 source is cropped a little, steady tracking)
+    video_top: 0.25         # top of the video box, as a fraction of the frame height
+    headline_size: 124      # headline above the video (Anton for English, Noto Bold for Indic scripts)
+    headline_chars: 20      # wrap the headline onto 2 lines past this many characters
+    headline_gap: 0.025
+    caption_gap: 0.03       # captions start this far below the video box
 
 preview:
   width: 540
@@ -59,6 +69,7 @@ subtitles:
   y_position: 0.66          # subtitle centre, as a fraction of height
   base_color: "#FFFFFF"
   landscape: {y_position: 0.8, bottom_safe: 0.05, right_safe: 0.0, font_scale: 0.8}
+  reel: {font_scale: 1.0, right_safe: 0.0}
   lead_sec: 0.05            # highlight this much before the word (feels in sync)
   emoji: false
   fonts:

@@ -25,10 +25,41 @@ def _esc(text: str) -> str:
     return text.replace("\\", "⧵").replace("{", "(").replace("}", ")")
 
 
-def build_ass(subs: dict, cfg, width: int = 1080, height: int = 1920) -> str:
+def _headline_text(text: str, latin: bool, accent: str, max_chars: int) -> str:
+    """'THE MAN WHO *SHOT OSAMA*' -> ASS text with the starred words in the accent colour,
+    broken into two balanced lines when long."""
+    words = text.split()
+    if latin:
+        words = [w.upper() for w in words]
+    # balanced 2-line break
+    lines = [words]
+    if len(" ".join(words).replace("*", "")) > max_chars and len(words) > 1:
+        k = min(range(1, len(words)), key=lambda i: abs(len(" ".join(words[:i])) - len(" ".join(words[i:]))))
+        lines = [words[:k], words[k:]]
+    out, on = [], False
+    for li, ws in enumerate(lines):
+        parts = []
+        for w in ws:
+            t = _esc(w)
+            start, end = t.startswith("*"), t.endswith("*") and len(t) > 1
+            t = t.strip("*")
+            if start:
+                on = True
+            parts.append(f"{{\\c{ass_color(accent)}}}{t}{{\\c&H00FFFFFF&}}" if on else t)
+            if end:
+                on = False
+        out.append(" ".join(parts))
+    return "\\N".join(out)
+
+
+def build_ass(subs: dict, cfg, width: int = 1080, height: int = 1920, box=None, headline: str | None = None,
+              duration: float | None = None) -> str:
     sc = dict(cfg.at("subtitles", {}))
+    framed = box is not None and (box[2], box[3]) != (width, height)  # reel: video box inside a 9:16 frame
     if width > height:  # landscape: lower on screen, no right-edge UI to avoid
         sc.update(sc.get("landscape", {"y_position": 0.84, "bottom_safe": 0.05, "right_safe": 0.0}))
+    if framed:
+        sc.update(sc.get("reel", {"font_scale": 0.85, "right_safe": 0.0}))
     lang = subs["lang"]
     font = sc.get("fonts", {}).get(lang, "Noto Sans")
     k = min(width, height) / 1080
@@ -41,6 +72,13 @@ def build_ass(subs: dict, cfg, width: int = 1080, height: int = 1920) -> str:
     y = int(height * sc.get("y_position", 0.66))
     y = min(y, int(height * (1 - sc.get("bottom_safe", 0.22))) - int(size * 1.3) * sc.get("max_lines", 2))
     x = (margin_lr + (width - margin_r)) // 2
+    if framed:  # captions in the black area right under the picture: they never cover a face
+        y = int(box[1] + box[3] + height * float(cfg.at("layout.reel.caption_gap", 0.03)))
+        x = width // 2
+    lay = cfg.at("layout.reel", {}) or {}
+    latin = lang == "en"
+    h_font = "Anton" if latin else font
+    h_size = int(float(lay.get("headline_size", 96)) * k * (1.0 if latin else 0.72 * LANG_SCALE.get(lang, 1.0)))
 
     head = f"""[Script Info]
 ScriptType: v4.00+
@@ -53,6 +91,7 @@ YCbCr Matrix: TV.709
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Karaoke,{font},{size},{base},{base},&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,{outline},{max(1, outline // 2)},5,{margin_lr},{margin_r},0,1
+Style: Headline,{h_font},{h_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,{0 if latin else -1},0,0,0,100,100,0,0,1,0,0,2,40,40,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -89,10 +128,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             intro = "\\fad(80,0)" if i == 0 else ""
             text = f"{{\\an8\\pos({x},{y}){intro}}}" + "".join(parts)
             lines.append(f"Dialogue: 0,{ass_time(cs[i] / 100)},{ass_time(cs[i + 1] / 100)},Karaoke,,0,0,0,,{text}")
+    if framed and headline:
+        end = duration or max((c["end"] for c in subs["chunks"]), default=60.0) + 1
+        ht = _headline_text(headline, latin, acc_col, int(lay.get("headline_chars", 22 if latin else 18)))
+        hy = int(box[1] - height * float(lay.get("headline_gap", 0.025)))
+        lines.insert(0, f"Dialogue: 1,{ass_time(0)},{ass_time(end)},Headline,,0,0,0,,{{\\an2\\pos({width // 2},{hy})}}{ht}")
     return head + "\n".join(lines) + "\n"
 
 
-def write_ass(subs: dict, cfg, out: Path, width: int = 1080, height: int = 1920) -> Path:
+def write_ass(subs: dict, cfg, out: Path, width: int = 1080, height: int = 1920, box=None,
+              headline: str | None = None, duration: float | None = None) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(build_ass(subs, cfg, width, height), encoding="utf-8")
+    out.write_text(build_ass(subs, cfg, width, height, box, headline, duration), encoding="utf-8")
     return out

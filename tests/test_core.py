@@ -95,3 +95,16 @@ def test_karaoke_events_are_contiguous_and_two_line():
     ev = [l.split(",")[1:3] for l in ass.splitlines() if l.startswith("Dialogue:")]
     assert all(a[1] == b[0] for a, b in zip(ev, ev[1:]))  # no gaps -> no flicker
     assert "\\N" in ass and "\\an8" in ass and "\\t(" not in ass  # stacked lines, no width-changing pop
+
+
+def test_reel_layout_headline_and_captions_below_video():
+    cfg = config.load(ROOT / "config.yaml")
+    ws = translate.timed_words("three thousand rejections", 0, 2)
+    box = (0, 480, 1080, 772)
+    ass = karaoke.build_ass({"lang": "en", "chunks": [{"start": 0, "end": 2, "words": ws}]}, cfg, 1080, 1920,
+                            box, "*3000 rejections* in Italy", 10.0)
+    head = [l for l in ass.splitlines() if ",Headline," in l and l.startswith("Dialogue")]
+    assert len(head) == 1 and "3000" in head[0] and "&H002B25E8" in head[0]  # accent red on the key words
+    assert "*" not in head[0]
+    ys = [int(l.split("\\pos(")[1].split(",")[1].split(")")[0]) for l in ass.splitlines() if ",Karaoke," in l]
+    assert ys and all(y > box[1] + box[3] for y in ys)  # captions sit under the video box

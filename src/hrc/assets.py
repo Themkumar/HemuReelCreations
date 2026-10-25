@@ -107,6 +107,14 @@ def _cutout(path: Path) -> Path:
         return path
 
 
+def _wants_cut(cfg, vm: dict, ext: str) -> bool:
+    """Cut out icons and objects (PNG/SVG, or style: sprite). Photos stay whole: they become the
+    background behind the speaker (style: backdrop)."""
+    if not cfg.at("assets.remove_background") or vm.get("style") == "backdrop":
+        return False
+    return vm.get("style") == "sprite" or ext.lower() == ".png"
+
+
 def run_stage(cfg, only: str | None = None, force: bool = False) -> dict:
     plan = planlib.approved(cfg)
     adir = cfg.path("paths.assets") / "images"
@@ -120,8 +128,8 @@ def run_stage(cfg, only: str | None = None, force: bool = False) -> dict:
             key = str(k)
             user = sorted((adir / reel["id"]).glob(f"{k}.*"))
             if user:
-                entry[key] = {"file": str(_cutout(user[0])) if cfg.at("assets.remove_background") else str(user[0]),
-                              "source": "you", "license": "your file", "phrase": vm["phrase"]}
+                entry[key] = {"file": str(_cutout(user[0])) if _wants_cut(cfg, vm, user[0].suffix) else str(user[0]),
+                              "original": str(user[0]), "source": "you", "license": "your file", "phrase": vm["phrase"]}
                 continue
             if key in entry and Path(entry[key].get("file", "")).exists() and not force:
                 continue
@@ -152,9 +160,9 @@ def run_stage(cfg, only: str | None = None, force: bool = False) -> dict:
             dest = adir / reel["id"] / f"web_{k}{ext}"
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(requests.get(found["url"], headers=UA, timeout=60).content)
-            file = _cutout(dest) if cfg.at("assets.remove_background") else dest
+            file = _cutout(dest) if _wants_cut(cfg, vm, ext) else dest
             risky = any(w in query.lower() for w in RISKY) or found.get("trademark") or vm.get("trademark")
-            entry[key] = {**found, "file": str(file), "phrase": vm["phrase"], "query": query,
+            entry[key] = {**found, "file": str(file), "original": str(dest), "phrase": vm["phrase"], "query": query,
                           "warning": "May be copyrighted (logo/news/film/person). Check before posting." if risky else ""}
             log.info("%s: '%s' -> %s (%s, %s)%s", reel["id"], query, found["source"], found["license"],
                      found.get("page", ""), "  ⚠ check copyright" if risky else "")

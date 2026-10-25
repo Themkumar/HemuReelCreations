@@ -166,7 +166,7 @@ def _crop(fr: np.ndarray, box: dict, z: float, W: int, H: int, heads: list) -> n
 
 
 def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: list[dict], has_matte: bool,
-              preview: bool, seed: int) -> dict:
+              preview: bool, seed: int, framing=None) -> dict:
     plate = rdir / "plate.mp4"
     mfile = rdir / "matte.mp4"
     heads = read_json(rdir / "heads.json")
@@ -182,7 +182,10 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     vig = (1 - 0.35 * ((((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2))[..., None].astype(np.float32)
     logo = _logo(cfg, W, H)
     enc = video_encoder_args(cfg, preview) if preview else ["-c:v", "libx264", "-preset", "fast", "-crf", "15", "-pix_fmt", "yuv420p"]
-    wr = _writer(rdir / "clean.mp4", W, H, fps, enc)
+    if framing:
+        FW, FH, (bx, by, bw, bh) = framing
+        canvas = np.zeros((FH, FW, 3), np.uint8)  # black frame: headline above, captions below
+    wr = _writer(rdir / "clean.mp4", *(framing[:2] if framing else (W, H)), fps, enc)
     mats = matte._frames(mfile, W, H) if has_matte else None
     overlap = 0
     prev_frames = {}
@@ -218,7 +221,11 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
             gfx_frame = frame.astype(np.float32)
             gfx.blend(gfx_frame, logo, W - logo.shape[1] * 0.5 - min(W, H) * 0.04, logo.shape[0] * 0.5 + min(W, H) * 0.03, 1.0, 0.85)
             frame = gfx_frame.astype(np.uint8)
-        wr.stdin.write(np.ascontiguousarray(frame).tobytes())
+        if framing:
+            canvas[by:by + bh, bx:bx + bw] = frame
+            wr.stdin.write(canvas.tobytes())
+        else:
+            wr.stdin.write(np.ascontiguousarray(frame).tobytes())
     wr.stdin.close(); wr.wait()
     return {"transitions": [{"t": round(c / fps, 3), "name": n} for c, n in zip(cuts, names)],
             "face_overlap_frames": overlap}
@@ -252,18 +259,39 @@ def speech_track(cfg, reel: dict, out: Path) -> None:
 
 
 def dims(cfg, fmt: str, preview: bool) -> tuple[int, int]:
+    """Size of the finished frame."""
     W, H = (cfg.at("preview.width"), cfg.at("preview.height")) if preview else (cfg.at("reel.width"), cfg.at("reel.height"))
     return (max(W, H), min(W, H)) if fmt == "landscape" else (min(W, H), max(W, H))
 
 
+def video_box(cfg, fmt: str, preview: bool) -> tuple[int, int, int, int]:
+    """Where the moving picture sits inside the frame: (x, y, w, h). For `reel` (the default), the
+    landscape video sits as a wide box in a 9:16 frame, with a headline above and captions below."""
+    W, H = dims(cfg, fmt, preview)
+    if fmt != "reel":
+        return 0, 0, W, H
+    lay = cfg.at("layout.reel", {}) or {}
+    vw = W
+    vh = int(round(vw / float(lay.get("video_aspect", 1.4)) / 2)) * 2
+    vy = int(round(H * float(lay.get("video_top", 0.27)) / 2)) * 2
+    return 0, vy, vw, vh
+
+
+def tag(fmt: str) -> str:
+    """File-name tag per format. The reel is the main product, so it has no tag."""
+    return {"landscape": "_landscape", "portrait": "_portrait"}.get(fmt, "")
+
+
 def suffix(fmt: str, preview: bool) -> str:
-    return ("_landscape" if fmt == "landscape" else "") + ("_preview" if preview else "")
+    return tag(fmt) + ("_preview" if preview else "")
 
 
 def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: bool = False, force: bool = False,
                 fmt: str = "portrait") -> Path:
     fps = cfg.at("reel.fps", 30)
-    W, H = dims(cfg, fmt, preview)
+    FW, FH = dims(cfg, fmt, preview)
+    box = video_box(cfg, fmt, preview)
+    W, H = box[2], box[3]  # the picture itself; for `reel` it is framed inside FW x FH at the end
     rdir = cfg.dir("renders") / (reel["id"] + suffix(fmt, preview))
     rdir.mkdir(parents=True, exist_ok=True)
     seed = sum(map(ord, reel["id"]))
@@ -298,7 +326,8 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     events = gfx.build_timeline(reel, rw, manifest, fps, duration, cfg.at("gfx.lead_frames", 1),
                                 cfg.at("gfx.default_hold_sec", 2.2), seed)
     log.info("%s (%s): %d speech-tied graphics, compositing...", reel["id"], fmt, len(events))
-    comp = composite(cfg, reel, rdir, W, H, fps, events, mres["engine"] != "none", preview, seed)
+    comp = composite(cfg, reel, rdir, W, H, fps, events, mres["engine"] != "none", preview, seed,
+                     framing=(FW, FH, box) if (FW, FH) != (W, H) else None)
 
     sfx_events = [{"t": e["t_in"], "kind": e["sfx_in"]} for e in events]
     sfx_events += [{"t": tr["t"], "kind": transitions.SFX[tr["name"]]} for tr in comp["transitions"]
@@ -308,7 +337,8 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     speech = rdir / "speech.wav"
     speech_track(cfg, reel, speech)
     used = audio.mix(cfg, speech, duration, sfx_events, reel.get("mood", "inspirational"), rdir / "mix.wav", seed)
-    write_json(rdir / "render.json", {"reel": reel["id"], "format": fmt, "size": [W, H], "duration": duration, "gfx": events,
+    write_json(rdir / "render.json", {"reel": reel["id"], "format": fmt, "size": [FW, FH], "video_box": list(box),
+                                      "duration": duration, "gfx": events,
                                       **comp, "audio": used, "matte": mres})
     log.info("%s: picture and sound ready (%d transitions, %d SFX, music: %s).", reel["id"],
              len(comp["transitions"]), len(used["sfx"]), Path(used["music"]).name if used["music"] else "none")

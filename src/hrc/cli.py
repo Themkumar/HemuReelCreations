@@ -94,7 +94,7 @@ def _render(cfg, a, preview):
     words = read_json(cfg.dir("cache") / "words.json")
     man = cfg.path("paths.assets") / "manifest.json"
     manifest = read_json(man) if man.exists() else {}
-    formats = (a.formats.split(",") if a.formats else cfg.at("reel.formats", ["portrait"]))
+    formats = (a.formats.split(",") if a.formats else cfg.at("reel.formats", ["reel"]))
     for reel in planlib.selected(plan, a.reel):
         for fmt in formats:
             rdir = render.render_reel(cfg, reel, words, manifest, preview=preview, force=a.force, fmt=fmt)
@@ -153,7 +153,7 @@ def main(argv=None):
                         ("preview", cmd_preview, "fast 540x960 draft (Telugu subtitles by default)")):
         sp = add(name, fn, h, reel=True, force=True)
         sp.add_argument("--langs", help="comma separated, e.g. te,en")
-        sp.add_argument("--formats", help="portrait,landscape (default: reel.formats in config.yaml)")
+        sp.add_argument("--formats", help="reel,landscape,portrait (default: reel.formats in config.yaml; reel = landscape video in a 9:16 frame)")
     sp = add("qa", cmd_qa, "write qa_report.md", reel=True)
     sp.add_argument("--preview", action="store_true")
     sp = add("sample", cmd_sample, "cut a short sample workspace into sample/")

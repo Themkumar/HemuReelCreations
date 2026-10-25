@@ -27,7 +27,7 @@ hrc select check && hrc approve
 hrc translate prepare && hrc translate build
 hrc assets                                       # downloads the images Claude picked (Wikimedia etc.)
 hrc preview --langs te,en                       # output/sample01/*_preview.mp4
-hrc render && hrc qa                            # full quality, 5 languages, portrait + landscape
+hrc render && hrc qa                            # full quality, 5 languages, reel layout (landscape video in 9:16)
 ```
 
 ## Commands, in order
@@ -71,3 +71,15 @@ Every stage writes JSON you can edit; re-running skips work whose inputs didn't 
 - Hair edges on fast movement may shimmer; check the matte flicker score in `qa_report.md`.
 - No speed ramps or true match cuts yet. Planar tracking for screen replacement is not implemented.
 - Web images: free sources only by default; anything flagged ⚠ (logos, news, film stills, people) needs your call.
+
+## Reel layout (v0.3)
+
+The default format is `reel`. It is a 9:16 frame:
+
+- A **headline** at the top (`headline:` in the reel plan, one per language). Words in `*stars*` turn red.
+- The **landscape video** as a wide box in the middle. Tracking is steady, and the speaker is cut out.
+- **Karaoke captions** in the black area under the video, so they never cover a face.
+
+At key moments, a **photo replaces the wall behind the speaker**. Big stacked words appear beside them: white, with the `*key word*` large and red. Photos (JPG) become backgrounds by default. Icons and logos (PNG/SVG) float as pictures. You can force either with `style: backdrop` or `style: sprite` on a visual moment.
+
+Other formats are still available: `hrc render --formats landscape` gives a plain 16:9 file, and `--formats portrait` gives the face-tracked 9:16 crop.

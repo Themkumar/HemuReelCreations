@@ -17,7 +17,11 @@ def _ff_path(p: Path) -> str:
 def export_reel(cfg, reel: dict, rdir: Path, preview: bool = False, langs: list[str] | None = None) -> list[Path]:
     info = read_json(rdir / "render.json")
     W, H = info["size"]
-    tag = "_landscape" if info.get("format") == "landscape" else ""
+    from .render import tag as fmt_tag
+    tag = fmt_tag(info.get("format", "portrait")) if "video_box" in info else ("_landscape" if info.get("format") == "landscape" else "")
+    heads = reel.get("headline") or {}
+    if isinstance(heads, str):
+        heads = {"en": heads}
     odir = cfg.dir("output") / reel["id"]
     odir.mkdir(parents=True, exist_ok=True)
     fonts = cfg.path("paths.assets") / "fonts"
@@ -30,7 +34,8 @@ def export_reel(cfg, reel: dict, rdir: Path, preview: bool = False, langs: list[
             log.warn("%s: no %s subtitles yet (run `hrc translate build`). Skipping that language.", reel["id"], lang)
             continue
         ass = rdir / f"{lang}.ass"
-        karaoke.write_ass(read_json(sub_file), cfg, ass, W, H)
+        headline = heads.get(lang) or heads.get("en") or reel.get("title")
+        karaoke.write_ass(read_json(sub_file), cfg, ass, W, H, info.get("video_box"), headline, info.get("duration"))
         out = odir / (f"{reel['id']}_{lang}{tag}" + ("_preview" if preview else "") + ".mp4")
         vf = f"ass='{_ff_path(ass)}':fontsdir='{_ff_path(fonts)}'"
         run([ffmpeg(), "-y", "-v", "error", "-i", rdir / "clean.mp4", "-i", rdir / "mix.wav", "-vf", vf,
