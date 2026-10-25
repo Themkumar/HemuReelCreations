@@ -102,6 +102,9 @@ matte:
   object_max_area: 0.22     # ignore "objects" bigger than this share of the picture (walls, the whole table)
   depth: true               # use a depth model to keep only objects as near as you or nearer
   refine_edges: true        # edge-aware clean-up of hair, hands and mic edges
+  depth_objects: true       # also keep everything as near as you below your eye line (mic arm, mug, tabletop), found by depth
+  depth_tolerance: -0.03    # negative = must be nearer than you (keeps your chair out); higher keeps more
+  object_region_top: 0.15   # ignore things above this share of your height from the top of your head
 
 gfx:
   max_major_at_once: 1

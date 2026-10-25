@@ -274,11 +274,12 @@ put a limiter on the main bus.</p>
   push_in). In Resolve you can also grade the photo on V2 or use the untouched HD still on V3.</li>
 </ul>
 <h2>The cut-out (you in front of the graphics)</h2>
-<p>Apple Vision finds you and every object in front of you: the mic, cups, bottles, a laptop. An object joins the
-cut-out when it is not too big (walls and the whole table are left out, <code>matte.object_max_area</code>), and, with the
-depth model, when it is as close to the camera as you or closer. Objects are steadied over 5 frames so they never
-flicker, and every edge is cleaned against the picture (<code>matte.refine_edges</code>). Needs macOS 14 or newer; on older
-macOS only the person is cut out. Turn objects off with <code>matte.objects: false</code>.</p>
+<p>A depth model (Depth Anything V2) measures how far every pixel is from the camera. Everything nearer than you,
+below your eye line, joins the cut-out: the mic and its arm, the mug, a laptop, the tabletop. Your chair and the
+wall stay behind (<code>matte.depth_tolerance: -0.03</code>; higher keeps more, lower keeps less). Apple Vision's object
+finder adds anything it detects. Objects are steadied over 5 frames so they never flicker, and every edge is
+cleaned against the picture (<code>matte.refine_edges</code>). Turn it off with <code>matte.depth_objects: false</code>.</p>
+<p>If the mic arm now covers a graphic's words, move that graphic on V4 in Resolve or delete its V5 cut-out clip.</p>
 <h2>How the look is built (and the settings that control it)</h2>
 <table>
 <thead>
@@ -407,6 +408,7 @@ A reel can switch off its ending with <code>"outro": false</code>.</p>
 </ul>
 <h2>Version history</h2>
 <ul>
+<li><strong>v0.7.1</strong> Depth-based object cut-out (mic arm, mug, tabletop), tuned on the real footage.</li>
 <li><strong>v0.7</strong> Cut-out keeps the mic, cups and bottles in front; HD photos (2400 px+, commercial licences) with candidate sheets and <code>"pick"</code>; crisp, configurable photo look; photo and HD still on their own Resolve tracks; every graphic's words as editable Resolve text.</li>
 <li><strong>v0.6</strong> Layered DaVinci Resolve pack (<code>hrc resolve</code>), illustrated README, 10 reels from HemuXSrinadh_Part1.</li>
 <li><strong>v0.5</strong> Clean camera cuts, steady captions, sound only on key moments, brand stamp logo and ending stamp.</li>

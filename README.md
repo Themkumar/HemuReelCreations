@@ -131,11 +131,13 @@ By default the Resolve pack is built in Telugu only (about 0.5–1 GB per reel).
 
 ## The cut-out (you in front of the graphics)
 
-Apple Vision finds you and every object in front of you: the mic, cups, bottles, a laptop. An object joins the
-cut-out when it is not too big (walls and the whole table are left out, `matte.object_max_area`), and, with the
-depth model, when it is as close to the camera as you or closer. Objects are steadied over 5 frames so they never
-flicker, and every edge is cleaned against the picture (`matte.refine_edges`). Needs macOS 14 or newer; on older
-macOS only the person is cut out. Turn objects off with `matte.objects: false`.
+A depth model (Depth Anything V2) measures how far every pixel is from the camera. Everything nearer than you,
+below your eye line, joins the cut-out: the mic and its arm, the mug, a laptop, the tabletop. Your chair and the
+wall stay behind (`matte.depth_tolerance: -0.03`; higher keeps more, lower keeps less). Apple Vision's object
+finder adds anything it detects. Objects are steadied over 5 frames so they never flicker, and every edge is
+cleaned against the picture (`matte.refine_edges`). Turn it off with `matte.depth_objects: false`.
+
+If the mic arm now covers a graphic's words, move that graphic on V4 in Resolve or delete its V5 cut-out clip.
 
 ## How the look is built (and the settings that control it)
 
@@ -185,6 +187,7 @@ A reel can switch off its ending with `"outro": false`.
 
 ## Version history
 
+- **v0.7.1** Depth-based object cut-out (mic arm, mug, tabletop), tuned on the real footage.
 - **v0.7** Cut-out keeps the mic, cups and bottles in front; HD photos (2400 px+, commercial licences) with candidate sheets and `"pick"`; crisp, configurable photo look; photo and HD still on their own Resolve tracks; every graphic's words as editable Resolve text.
 - **v0.6** Layered DaVinci Resolve pack (`hrc resolve`), illustrated README, 10 reels from HemuXSrinadh_Part1.
 - **v0.5** Clean camera cuts, steady captions, sound only on key moments, brand stamp logo and ending stamp.

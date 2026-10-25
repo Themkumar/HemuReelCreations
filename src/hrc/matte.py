@@ -7,6 +7,10 @@ is not too big (walls, the whole table), not the person, and (with a depth model
 camera as the speaker or nearer. Objects are steadied over 5 frames so they never flicker, and the
 edges are refined against the picture (guided filter) for clean hair and mic edges.
 
+With `matte.depth_objects`, a depth model also finds everything as near as the speaker (or nearer)
+below their eye line: the mic and its arm, the mug, the tabletop. This catches things Vision's
+instance pass merges into the person or misses. The two object masks are combined.
+
 Runs on the reframed plate and writes mattes/<reel>.mp4 (grey = cut-out alpha).
 """
 from __future__ import annotations
@@ -164,8 +168,46 @@ def select_objects(person: np.ndarray, labels: np.ndarray, depth: np.ndarray | N
     return keep
 
 
+def depth_objects(person: np.ndarray, depth: np.ndarray | None, grey: np.ndarray | None = None,
+                  tol: float = 0.06, region_top: float = 0.15, min_area: float = 0.001) -> np.ndarray:
+    """Soft mask (0-1, plate size) of things as near as the speaker or nearer, below their eye line.
+
+    person: person alpha (0-1), depth: 0-1 with near = high (same size), grey: picture for edge snapping.
+    """
+    import cv2
+
+    H, W = person.shape
+    empty = np.zeros((H, W), np.float32)
+    if depth is None:
+        return empty
+    P = person > 0.7
+    if P.mean() < 0.01:
+        return empty  # nobody in the picture: no reference distance
+    ys = np.nonzero(P.any(axis=1))[0]
+    y0, y1 = int(ys.min()), int(ys.max())
+    ph = max(1, y1 - y0)
+    lower = P.copy()
+    lower[: y0 + int(0.3 * ph)] = False  # the hair and cap don't set the distance
+    dp = float(np.median(depth[lower])) if lower.any() else float(np.median(depth[P]))
+    cand = (depth >= dp - tol) & (person < 0.9)  # soft person edges (mic over the chest) may join
+    cand[: min(H, y0 + int(region_top * ph))] = False  # nothing above the eye line (lamps, shelves)
+    m = cand.astype(np.uint8)
+    k = max(3, int(round(min(H, W) * 0.006)) | 1)
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
+    keep = np.zeros(n, bool)
+    keep[1:] = st[1:, cv2.CC_STAT_AREA] >= min_area * H * W
+    m = keep[lab].astype(np.float32)
+    if not m.any():
+        return empty
+    if grey is not None:
+        m = guided_filter(grey, m, r=8, eps=1e-3)
+    return np.clip((m - 0.3) / 0.4, 0, 1).astype(np.float32)
+
+
 def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smooth: float = 0.6,
-               objects: bool = True, refine: bool = True, max_area: float = 0.22, depth_model: bool = True) -> dict:
+               objects: bool = True, refine: bool = True, max_area: float = 0.22, depth_model: bool = True,
+               use_depth_objects: bool = True, depth_tol: float = -0.03, region_top: float = 0.15) -> dict:
     info = video_info(plate)
     W, H, fps = info["width"], info["height"], info["fps"]
     engine = pick_engine(engine)
@@ -201,7 +243,7 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
                 proc.stdin.close()
 
         th = threading.Thread(target=feed, daemon=True); th.start()
-        depth = _Depth() if objects and depth_model else None
+        depth = _Depth(every=2) if objects and depth_model else None
         win: deque = deque()  # (person alpha, object alpha, grey) for the 5-frame object median
         next_emit, base = 0, [0]  # next frame to write; frame number of win[0]
         stats = {"frames": 0, "object_frames": 0, "object_px": 0.0}
@@ -235,8 +277,12 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
                 a = cv2.GaussianBlur(np.clip((a - 0.15) / 0.7, 0, 1), (0, 0), 1.2)
             prev, a = _smooth(prev, a, smooth, diffs)
             obj = np.zeros((H, W), np.float32)
+            grey = (cv2.cvtColor(fr, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0) if fr is not None \
+                else np.zeros((H, W), np.float32)
+            dfull = depth(fr, (W, H)) if (objects and depth is not None and fr is not None) else None
             if objects and om is not None and om.size and lb is not None and lb.size:
-                d = depth(fr, (lb.shape[1], lb.shape[0])) if (depth is not None and fr is not None) else None
+                d = cv2.resize(dfull, (lb.shape[1], lb.shape[0]), interpolation=cv2.INTER_AREA) \
+                    if dfull is not None else None
                 keep = select_objects(a, lb, d, max_area)
                 if keep:
                     sel = np.isin(lb, keep).astype(np.uint8) * 255
@@ -244,8 +290,8 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
                     sel = cv2.dilate(sel, np.ones((5, 5), np.uint8)).astype(np.float32) / 255.0
                     soft = cv2.resize(om, (W, H), interpolation=cv2.INTER_LINEAR).astype(np.float32) / 255.0
                     obj = np.clip(soft * sel, 0, 1)
-            grey = (cv2.cvtColor(fr, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0) if fr is not None \
-                else np.zeros((H, W), np.float32)
+            if objects and use_depth_objects and dfull is not None:
+                obj = np.maximum(obj, depth_objects(a, dfull, grey, depth_tol, region_top))
             win.append((a, obj, grey))
             while len(win) - (next_emit - base[0]) > 2:
                 k = next_emit - base[0]
@@ -260,7 +306,9 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
         th.join(); proc.wait()
         mres_extra = {"objects": bool(objects), "object_frames": stats["object_frames"],
                       "object_share": round(stats["object_px"] / max(1, stats["object_frames"]), 4),
-                      "depth": bool(depth is not None and depth.pipe is not None), "refined": bool(refine)}
+                      "depth": bool(depth is not None and depth.pipe is not None), "refined": bool(refine),
+                      "depth_objects": bool(objects and use_depth_objects and depth is not None and depth.pipe is not None),
+                      "depth_tolerance": depth_tol}
     elif engine == "rvm":
         import torch
 

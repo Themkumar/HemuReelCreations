@@ -204,3 +204,20 @@ def test_guided_filter_keeps_flat_alpha():
     I = np.full((40, 40), 0.5, np.float32); p = np.zeros((40, 40), np.float32); p[:, 20:] = 1
     out = guided_filter(I, p, r=3)
     assert out[:, :15].max() < 0.05 and out[:, 25:].min() > 0.95
+
+
+def test_depth_objects_keeps_near_things_below_eye_line():
+    import numpy as np
+    from hrc.matte import depth_objects
+
+    H, W = 120, 160
+    person = np.zeros((H, W), np.float32); person[20:100, 60:100] = 1
+    depth = np.full((H, W), 0.1, np.float32)          # far wall
+    depth[20:100, 60:100] = 0.5                         # the speaker
+    depth[50:90, 30:45] = 0.7                           # a mic, nearer than the speaker
+    depth[5:15, 120:150] = 0.9                          # a lamp up high (above the eye line)
+    m = depth_objects(person, depth, None, tol=0.06, region_top=0.15)
+    assert m[70, 37] > 0.9                              # mic kept
+    assert m[10, 130] == 0                              # lamp above the eye line dropped
+    assert m[5, 5] == 0 and m[60, 80] == 0              # wall dropped, person itself not doubled
+    assert not depth_objects(np.zeros((H, W), np.float32), depth).any()   # nobody in frame: nothing

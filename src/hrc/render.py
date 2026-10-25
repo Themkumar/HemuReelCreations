@@ -549,7 +549,10 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
                                 cfg.at("matte.downsample", 0.4), cfg.at("matte.temporal_smooth", 0.6),
                                 objects=bool(cfg.at("matte.objects", True)), refine=bool(cfg.at("matte.refine_edges", True)),
                                 max_area=float(cfg.at("matte.object_max_area", 0.22)),
-                                depth_model=bool(cfg.at("matte.depth", True)))
+                                depth_model=bool(cfg.at("matte.depth", True)),
+                                use_depth_objects=bool(cfg.at("matte.depth_objects", True)),
+                                depth_tol=float(cfg.at("matte.depth_tolerance", -0.03)),
+                                region_top=float(cfg.at("matte.object_region_top", 0.15)))
         write_json(rdir / "matte.json", mres)
         if mres["engine"] != "none":
             mark(rdir / "matte.mp4", fp_matte)
