@@ -76,6 +76,7 @@ reframe:
   head_room: 0.30           # face centre sits this far down the frame
   punch_in_scale: 1.12      # zoom for emphasis words
   punch_in_frames: 6
+  portrait_top_band: 0.18    # portrait: video sits lower, top 18% is a soft band for graphics above the head
 
 matte:
   engine: auto              # auto | rvm | mediapipe | none

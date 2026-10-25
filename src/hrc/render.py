@@ -95,13 +95,25 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
     total = card_n + sum(int(round((s["end"] - s["start"]) * fps)) for s in planlib.segments(reel))
     zoom = zoom_envelope(total, fps, emph_times, cfg.at("reframe.punch_in_scale", 1.12), cfg.at("reframe.punch_in_frames", 6))
     segs = planlib.segments(reel)
-    paths = [crop_path(faces, shots, seg["start"], seg["end"], fps, sw, sh, W, H,
+    # Portrait: the video sits a little lower and a soft band at the top gives graphics room above the head
+    band = float(cfg.at("reframe.portrait_top_band", 0.18)) if H > W else 0.0
+    Hv = H - int(round(H * band / 2)) * 2
+    off = H - Hv
+
+    def place(img: np.ndarray) -> np.ndarray:
+        if not off:
+            return img
+        if heads:
+            heads[-1]["y"] = round(heads[-1]["y"] + off, 1)
+        return _with_top_band(img, W, H, off)
+
+    paths = [crop_path(faces, shots, seg["start"], seg["end"], fps, sw, sh, W, Hv,
                        cfg.at("reframe.smoothing_min_cutoff", 0.6), cfg.at("reframe.smoothing_beta", 0.01),
                        cfg.at("reframe.head_room", 0.30), cfg.at("reframe.deadzone", 0.12),
                        cfg.at("reframe.max_pan", 0.012)) for seg in segs]
     if card_n:
         fr0 = next(_reader(video, segs[0]["start"], 0.2, fps, sw, sh))
-        first = _crop(fr0, paths[0][0], 1.0, W, H, [])
+        first = _with_top_band(_crop(fr0, paths[0][0], 1.0, W, Hv, []), W, H, off) if off else _crop(fr0, paths[0][0], 1.0, W, H, [])
         for cf in _context_card(first, reel["context_card"], W, H, card_n, cfg.at("project.brand_colors")):
             wr.stdin.write(cf.tobytes())
     fi = card_n
@@ -112,16 +124,31 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
             if k >= n:
                 break
             last = fr
-            wr.stdin.write(_crop(fr, path[min(k, len(path) - 1)], zoom[fi], W, H, heads).tobytes())
+            wr.stdin.write(place(_crop(fr, path[min(k, len(path) - 1)], zoom[fi], W, Hv, heads)).tobytes())
             k += 1; fi += 1
         while k < n and last is not None:  # pad if the decoder returned a frame or two short
-            wr.stdin.write(_crop(last, path[-1], zoom[min(fi, total - 1)], W, H, heads).tobytes())
+            wr.stdin.write(place(_crop(last, path[-1], zoom[min(fi, total - 1)], W, Hv, heads)).tobytes())
             k += 1; fi += 1
     wr.stdin.close(); wr.wait()
     card_head = heads[0] if heads else {"x": W / 2, "y": H * 0.3, "size": W * 0.15}
     heads = [card_head] * card_n + heads
     write_json(rdir / "heads.json", heads)
     return {"frames": total, "card_frames": card_n}
+
+
+def _with_top_band(img: np.ndarray, W: int, H: int, off: int) -> np.ndarray:
+    """Put the video at the bottom of a W x H canvas; the top `off` rows get a soft backdrop made
+    from the colours along the video's top edge (no shapes, so the person matte stays clean)."""
+    out = np.empty((H, W, 3), np.uint8)
+    out[off:] = img
+    edge = img[: max(4, off // 6)].astype(np.float32).mean(axis=0)  # per-column colour of the top edge
+    edge = cv2.GaussianBlur(edge[None], (0, 0), W / 40)[0]
+    fade = np.linspace(0.35, 0.9, off, dtype=np.float32)[:, None, None]  # darker toward the top
+    out[:off] = np.clip(edge[None] * fade, 0, 255).astype(np.uint8)
+    blend = min(off, max(8, H // 60))  # soften the seam
+    a = np.linspace(0, 1, blend, dtype=np.float32)[:, None, None]
+    out[off:off + blend] = (out[off - 1:off].astype(np.float32) * (1 - a) + img[:blend] * a).astype(np.uint8)
+    return out
 
 
 def _crop(fr: np.ndarray, box: dict, z: float, W: int, H: int, heads: list) -> np.ndarray:
