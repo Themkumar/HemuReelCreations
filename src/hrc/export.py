@@ -35,7 +35,8 @@ def export_reel(cfg, reel: dict, rdir: Path, preview: bool = False, langs: list[
             continue
         ass = rdir / f"{lang}.ass"
         headline = heads.get(lang) or heads.get("en") or reel.get("title")
-        karaoke.write_ass(read_json(sub_file), cfg, ass, W, H, info.get("video_box"), headline, info.get("duration"))
+        karaoke.write_ass(read_json(sub_file), cfg, ass, W, H, info.get("video_box"), headline,
+                         (info.get("duration") or 0) - info.get("outro_sec", 0) or None)
         out = odir / (f"{reel['id']}_{lang}{tag}" + ("_preview" if preview else "") + ".mp4")
         vf = f"ass='{_ff_path(ass)}':fontsdir='{_ff_path(fonts)}'"
         run([ffmpeg(), "-y", "-v", "error", "-i", rdir / "clean.mp4", "-i", rdir / "mix.wav", "-vf", vf,

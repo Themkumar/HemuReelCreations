@@ -97,3 +97,22 @@ Other formats are still available: `hrc render --formats landscape` gives a plai
 - **Money counters**: `value: "₹1,50,000"`, `"$3000"` or `"€1,200"` counts up with ticks and a chime. Currency symbols drift up behind it, and ₹ amounts use Indian digit grouping.
 - **SFX**: rebuilt cinematic library (soft whooshes, deep booms, typewriter keys, money ticks, shimmer, gentle glitches). Each sound is matched to its animation and mixed lower. Your own files in `assets/sfx/<type>/` still win.
 - **Apple Vision cut-out**: on a Mac, `matte.engine: auto` compiles a small Swift helper (`src/hrc/vision_matte.swift`) on first use and uses Apple's person segmentation at accurate quality. It falls back to RVM if the helper can't be built.
+
+## Final polish (v0.5)
+
+- **Clean cuts.** Every camera switch is found on the exact frame (the crop switches on the same
+  frame as the picture), and any camera angle that would flash on screen for less than
+  `reframe.min_shot_sec` (0.4 s) is removed. Graphics that would fade out just after a camera
+  switch now end exactly on the switch. Segment joins use calm editor-style cuts
+  (`zoom_punch`, `hard`, `whip_pan`); the flashier ones are still available in `transitions.library`.
+- **Steady captions.** A caption stays on screen through short pauses (under `subtitles.hold_gap_sec`)
+  and hands straight over to the next one, so there is never a blank frame. It fades in softly only
+  after a real pause.
+- **Sound only on key moments.** A reel gets at most `audio.sfx_max` sound effects (4), at least
+  `audio.sfx_min_gap` seconds apart (5 s): big numbers and photo backgrounds first. Mark a visual
+  moment with `"sfx": true` to make sure it gets a sound, or `"sfx": false` to keep it silent.
+  Plain text pop-ups, typewriter keys and transitions are silent unless marked.
+- **Brand stamp.** The round "THE HEMU MARK" stamp (`assets/brand/hemu_mark_stamp.png`) sits in the
+  top-right corner, recoloured white so it reads on dark video. Every reel ends with a 1.8 s outro:
+  the picture blurs and dims, the stamp slams into the centre of the screen with a small shake, an
+  ink ring and flecks, and a firm but soft stamp sound. Turn it off for one reel with `"outro": false`.

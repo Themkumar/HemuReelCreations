@@ -98,12 +98,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = []
     lead = sc.get("lead_sec", 0.05)  # highlight a hair early; it reads as "on time" to the eye
-    for ch in subs["chunks"]:
+    hold = float(sc.get("hold_gap_sec", 0.6))  # a short pause keeps the caption up instead of blinking off
+    chunks = [c for c in subs["chunks"] if c["words"]]
+    for ci, ch in enumerate(chunks):
         words = ch["words"]
-        if not words:
-            continue
+        start, end = ch["start"], ch["end"]
+        prev_end = chunks[ci - 1]["end"] if ci else None
+        nxt = chunks[ci + 1]["start"] if ci + 1 < len(chunks) else None
+        if nxt is not None and nxt - end < hold:
+            end = max(end, nxt)  # hand straight over to the next caption, no blank frame
+        if ci and prev_end is not None and start - prev_end < hold:
+            start = max(start, chunks[ci - 1]["_end"])  # begin exactly where the last one stopped
+        ch["_end"] = end
+        after_pause = ci == 0 or prev_end is None or start - prev_end >= hold
         # contiguous, centisecond-exact event times: no gaps, no overlaps, so nothing blinks
-        cuts = [ch["start"]] + [max(ch["start"], w["start"] - lead) for w in words[1:]] + [ch["end"]]
+        cuts = [start] + [max(start, w["start"] - lead) for w in words[1:]] + [end]
         cs = [int(round(t * 100)) for t in cuts]
         for i in range(1, len(cs)):
             cs[i] = max(cs[i], cs[i - 1])
@@ -125,7 +134,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     parts.append(f"{{\\c{ass_color(acc_col)}{size}}}{t}{{\\r}}")
                 else:
                     parts.append(t)
-            intro = "\\fad(80,0)" if i == 0 else ""
+            intro = "\\fad(120,0)" if i == 0 and after_pause else ""
             text = f"{{\\an8\\pos({x},{y}){intro}}}" + "".join(parts)
             lines.append(f"Dialogue: 0,{ass_time(cs[i] / 100)},{ass_time(cs[i + 1] / 100)},Karaoke,,0,0,0,,{text}")
     if framed and headline:

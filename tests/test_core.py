@@ -108,3 +108,45 @@ def test_reel_layout_headline_and_captions_below_video():
     assert "*" not in head[0]
     ys = [int(l.split("\\pos(")[1].split(",")[1].split(")")[0]) for l in ass.splitlines() if ",Karaoke," in l]
     assert ys and all(y > box[1] + box[3] for y in ys)  # captions sit under the video box
+
+
+def test_clean_cuts_remove_short_camera_flashes():
+    from hrc.render import frame_map, switch_frames
+    import numpy as np
+    # 5-frame sliver of the other camera at the start, a 3-frame flash mid-way, a 4-frame tail
+    fm = frame_map(60, [5, 30, 33, 56], 12)
+    assert fm[:6] == [5] * 6            # opening sliver shows the new shot's first frame
+    assert fm[30:33] == [29, 29, 29]    # mid flash holds the frame before it
+    assert fm[56:] == [55] * 4          # tail sliver holds
+    assert fm == sorted(fm)             # never goes backwards (streamable)
+    d = np.full(40, 2.0, np.float32); d[21] = 40.0; d[20] = 15.0
+    assert switch_frames(d, [19]) == [21]  # detected cut snapped onto the real switch frame
+
+
+def test_captions_never_blink_between_close_chunks():
+    from hrc.karaoke import build_ass
+    cfg = config.load(ROOT / "config.yaml")
+    subs = {"lang": "en", "chunks": [
+        {"start": 0.0, "end": 1.0, "words": [{"w": "one", "start": 0.0, "end": 0.5}, {"w": "two", "start": 0.5, "end": 1.0}]},
+        {"start": 1.3, "end": 2.0, "words": [{"w": "three", "start": 1.3, "end": 2.0}]},
+        {"start": 3.5, "end": 4.0, "words": [{"w": "four", "start": 3.5, "end": 4.0}]}]}
+    ass = build_ass(subs, cfg, 1080, 1920)
+    ev = [l for l in ass.splitlines() if l.startswith("Dialogue")]
+    times = [(l.split(",")[1], l.split(",")[2]) for l in ev]
+    assert times[1][1] == times[2][0] == "0:00:01.30"   # chunk 1 hands straight over to chunk 2
+    assert "\\fad" not in ev[2]                          # no fade-in after a tiny pause
+    assert "\\fad" in ev[3]                              # real pause: soft fade-in
+
+
+def test_sfx_only_on_key_moments():
+    from hrc.render import choose_sfx
+    cfg = config.load(ROOT / "config.yaml")
+    reel = {"visual_moments": [{}, {}, {}, {"sfx": True}, {"sfx": False}]}
+    ev = lambda i, ty, t, **k: {"id": f"g{i:02d}", "type": ty, "t_in": t, "sfx_in": "pop",
+                                "sfx": [{"t": t, "kind": "whoosh"}], **k}
+    events = [ev(0, "counter", 1.0), ev(1, "text", 3.0), ev(2, "image", 4.0, style="backdrop"),
+              ev(3, "text", 12.0), ev(4, "counter", 20.0)]
+    out = choose_sfx(cfg, reel, events)
+    ts = sorted(x["t"] for x in out)
+    assert 3.0 not in ts and 20.0 not in ts and 12.0 in ts
+    assert all(b - a >= 5.0 for a, b in zip(ts, ts[1:]))

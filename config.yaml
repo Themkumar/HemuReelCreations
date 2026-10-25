@@ -2,7 +2,10 @@
 project:
   name: HemuReelCreations
   channel_name: "The Hemu Mark"
-  logo: assets/brand/hemu_mark_logo.png
+  logo: assets/brand/hemu_mark_stamp.png   # round "THE HEMU MARK" stamp (transparent PNG)
+  logo_color: "#FFFFFF"     # stamp ink is recoloured to this so it reads on dark video
+  logo_size: 0.15           # corner logo width, as a fraction of the picture's short side
+  end_stamp_size: 0.58      # ending stamp width, as a fraction of the frame's short side
   brand_colors: ["#FFD400", "#E8252B"]   # [highlight word colour, accent colour (headline keywords, key words)]
 
 input:
@@ -71,6 +74,7 @@ subtitles:
   landscape: {y_position: 0.8, bottom_safe: 0.05, right_safe: 0.0, font_scale: 0.8}
   reel: {font_scale: 1.0, right_safe: 0.0}
   lead_sec: 0.05            # highlight this much before the word (feels in sync)
+  hold_gap_sec: 0.6         # pauses shorter than this keep the caption on screen (no blinking)
   emoji: false
   fonts:
     te: Noto Sans Telugu
@@ -87,6 +91,7 @@ reframe:
   head_room: 0.30           # face centre sits this far down the frame
   punch_in_scale: 1.12      # zoom for emphasis words
   punch_in_frames: 6
+  min_shot_sec: 0.4         # a camera angle shown for less than this is removed (no flash cuts)
   portrait_top_band: 0.18    # portrait: video sits lower, top 18% is a soft band for graphics above the head
 
 matte:
@@ -100,7 +105,9 @@ gfx:
   default_hold_sec: 2.2
 
 transitions:
-  library: [zoom_punch, whip_pan, glitch, rgb_split, light_flash, spin, slide, shape_wipe, film_burn]
+  library: [zoom_punch, hard, whip_pan]   # clean, editor-style joins. Flashier ones: glitch, rgb_split,
+                                          # light_flash, spin, slide, shape_wipe, film_burn
+  sfx: false                # joins stay silent; sound is saved for the key moments
   hard_cut_if_gap_under: 0.25
 
 audio:
@@ -108,6 +115,8 @@ audio:
   music_db: -20
   duck_ratio: 8
   sfx_db: -8
+  sfx_max: 4                # sound effects per reel (plus the ending stamp), only on the key moments
+  sfx_min_gap: 5.0          # seconds between two sound effects
   speech_cleanup: true
 
 export:

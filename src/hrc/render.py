@@ -34,6 +34,64 @@ def _reader(video: Path, start: float, dur: float, fps: int, W: int, H: int):
     proc.stdout.close(); proc.wait()
 
 
+def _thumbs(video: Path, start: float, dur: float, fps: int):
+    """Tiny grey frames, decoded exactly like _reader, for finding the true camera-switch frames."""
+    cmd = [ffmpeg(), "-v", "error", "-ss", f"{start:.3f}", "-i", str(video), "-t", f"{dur:.3f}",
+           "-vf", f"fps={fps},scale=64:36,format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+    raw = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout
+    n = len(raw) // (64 * 36)
+    return np.frombuffer(raw[: n * 64 * 36], np.uint8).reshape(n, 36, 64).astype(np.float32)
+
+
+def switch_frames(diffs: np.ndarray, hints: list[int], search: int = 3) -> list[int]:
+    """Frame indices where the picture switches camera. `diffs[k]` = change from frame k-1 to k.
+    Each detected cut is snapped to the frame with the biggest change near it (so the crop
+    switches on exactly the same frame as the picture), and strong unseen switches are added."""
+    n = len(diffs)
+    if n < 3:
+        return []
+    out = set()
+    for k0 in hints:
+        lo, hi = max(1, k0 - search), min(n, k0 + search + 1)
+        if lo < hi:
+            k = lo + int(np.argmax(diffs[lo:hi]))
+            if diffs[k] > 8:
+                out.add(k)
+    med = float(np.median(diffs[1:])) if n > 1 else 0.0
+    thr = max(22.0, med * 6)
+    for k in range(1, n):
+        if diffs[k] > thr and diffs[k] == diffs[max(1, k - 2):k + 3].max():
+            out.add(k)
+    ks = sorted(out)
+    merged = []
+    for k in ks:  # one switch per 2 frames at most
+        if merged and k - merged[-1] < 2:
+            if diffs[k] > diffs[merged[-1]]:
+                merged[-1] = k
+            continue
+        merged.append(k)
+    return merged
+
+
+def frame_map(n: int, switches: list[int], min_shot: int) -> list[int]:
+    """Which source frame to show for each output frame, so no camera angle flashes on screen for
+    less than `min_shot` frames: a sliver at the start shows the next shot's first frame, a sliver
+    at the end or in the middle holds the frame before it."""
+    src = list(range(n))
+    bounds = [0] + [k for k in switches if 0 < k < n] + [n]
+    for a, b in zip(bounds, bounds[1:]):
+        if b - a >= min_shot or b - a <= 0:
+            continue
+        if a == 0:
+            if b < n:
+                for k in range(a, b):
+                    src[k] = b
+        else:
+            for k in range(a, b):
+                src[k] = src[a - 1]
+    return src
+
+
 def _writer(out: Path, W: int, H: int, fps: int, enc: list[str]):
     return subprocess.Popen([ffmpeg(), "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
                              "-r", str(fps), "-i", "-", *enc, str(out)], stdin=subprocess.PIPE)
@@ -107,32 +165,60 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
             heads[-1]["y"] = round(heads[-1]["y"] + off, 1)
         return _with_top_band(img, W, H, off)
 
-    paths = [crop_path(faces, shots, seg["start"], seg["end"], fps, sw, sh, W, Hv,
+    min_shot = max(1, int(round(float(cfg.at("reframe.min_shot_sec", 0.4)) * fps)))
+    maps, seg_shots, switch_times = [], [], []
+    rt = planlib.context_card_sec(reel)
+    for seg in segs:
+        n = int(round((seg["end"] - seg["start"]) * fps))
+        th = _thumbs(video, seg["start"], seg["end"] - seg["start"], fps)
+        diffs = np.zeros(len(th), np.float32)
+        if len(th) > 1:
+            diffs[1:] = np.abs(th[1:] - th[:-1]).mean(axis=(1, 2))
+        hints = [int(round((c["start"] - seg["start"]) * fps)) for c in shots if seg["start"] < c["start"] < seg["end"]]
+        sw_k = switch_frames(diffs, hints)
+        fmap = frame_map(n, sw_k, min_shot)
+        maps.append(fmap)
+        # exact frame times (a hair early) so the crop path switches on the same frame as the picture
+        seg_shots.append([{"start": seg["start"] + (k - 0.25) / fps} for k in sw_k if 0 < k < n])
+        shown = [k for k in range(1, n) if fmap[k] != fmap[k - 1] and any(fmap[k - 1] < x <= fmap[k] for x in sw_k)]
+        switch_times += [round(rt + k / fps, 3) for k in shown]
+        rt += seg["end"] - seg["start"]
+        dropped = len([k for k in sw_k if 0 < k < n]) - len(shown)
+        if dropped > 0:
+            log.info("  clean cuts: removed %d camera flash(es) shorter than %d frames in segment %.1f-%.1fs",
+                     dropped, min_shot, seg["start"], seg["end"])
+    paths = [crop_path(faces, ss, seg["start"], seg["end"], fps, sw, sh, W, Hv,
                        cfg.at("reframe.smoothing_min_cutoff", 0.6), cfg.at("reframe.smoothing_beta", 0.01),
                        cfg.at("reframe.head_room", 0.30), cfg.at("reframe.deadzone", 0.12),
-                       cfg.at("reframe.max_pan", 0.012)) for seg in segs]
+                       cfg.at("reframe.max_pan", 0.012)) for seg, ss in zip(segs, seg_shots)]
     if card_n:
         fr0 = next(_reader(video, segs[0]["start"], 0.2, fps, sw, sh))
         first = _with_top_band(_crop(fr0, paths[0][0], 1.0, W, Hv, []), W, H, off) if off else _crop(fr0, paths[0][0], 1.0, W, H, [])
         for cf in _context_card(first, reel["context_card"], W, H, card_n, cfg.at("project.brand_colors")):
             wr.stdin.write(cf.tobytes())
     fi = card_n
-    for seg, path in zip(segs, paths):
+    for seg, path, fmap in zip(segs, paths, maps):
         n = int(round((seg["end"] - seg["start"]) * fps))
-        k, last = 0, None
-        for fr in _reader(video, seg["start"], seg["end"] - seg["start"] + 0.2, fps, sw, sh):
-            if k >= n:
+        reader = _reader(video, seg["start"], seg["end"] - seg["start"] + 0.2, fps, sw, sh)
+        cur, cur_i = None, -1
+        for k in range(n):
+            want = fmap[k]
+            while cur_i < want:  # fmap never goes backwards, so one frame of memory is enough
+                nxt = next(reader, None)
+                if nxt is None:
+                    break  # decoder came up a frame or two short: hold the last frame
+                cur, cur_i = nxt, cur_i + 1
+            if cur is None:
                 break
-            last = fr
-            wr.stdin.write(place(_crop(fr, path[min(k, len(path) - 1)], zoom[fi], W, Hv, heads)).tobytes())
-            k += 1; fi += 1
-        while k < n and last is not None:  # pad if the decoder returned a frame or two short
-            wr.stdin.write(place(_crop(last, path[-1], zoom[min(fi, total - 1)], W, Hv, heads)).tobytes())
-            k += 1; fi += 1
+            j = min(want, cur_i, len(path) - 1)
+            wr.stdin.write(place(_crop(cur, path[j], zoom[min(fi, total - 1)], W, Hv, heads)).tobytes())
+            fi += 1
+        reader.close()
     wr.stdin.close(); wr.wait()
     card_head = heads[0] if heads else {"x": W / 2, "y": H * 0.3, "size": W * 0.15}
     heads = [card_head] * card_n + heads
     write_json(rdir / "heads.json", heads)
+    write_json(rdir / "cuts.json", {"camera_switches": switch_times, "segment_joins": planlib.cut_points(reel)})
     return {"frames": total, "card_frames": card_n}
 
 
@@ -189,6 +275,7 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     mats = matte._frames(mfile, W, H) if has_matte else None
     overlap = 0
     prev_frames = {}
+    last_full = None
     for i, fr in enumerate(matte._frames(plate, W, H)):
         t = i / fps
         head = heads[min(i, len(heads) - 1)]
@@ -220,27 +307,126 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
                 frame = transitions.apply(name, frame, p, prev_frames.get(c), seed + c)
         if logo is not None:
             gfx_frame = frame.astype(np.float32)
-            gfx.blend(gfx_frame, logo, W - logo.shape[1] * 0.5 - min(W, H) * 0.04, logo.shape[0] * 0.5 + min(W, H) * 0.03, 1.0, 0.85)
+            gfx.blend(gfx_frame, logo, W - logo.shape[1] * 0.5 - min(W, H) * 0.03, logo.shape[0] * 0.5 + min(W, H) * 0.03, 1.0, 0.85)
             frame = gfx_frame.astype(np.uint8)
         if framing:
             canvas[by:by + bh, bx:bx + bw] = frame
             wr.stdin.write(canvas.tobytes())
+            last_full = canvas
         else:
-            wr.stdin.write(np.ascontiguousarray(frame).tobytes())
+            last_full = np.ascontiguousarray(frame)
+            wr.stdin.write(last_full.tobytes())
+    n_out = int(round(planlib.outro_sec(reel) * fps))
+    if n_out and last_full is not None:
+        FW_, FH_ = framing[:2] if framing else (W, H)
+        stamp = brand_mark(cfg, int(min(FW_, FH_) * float(cfg.at("project.end_stamp_size", 0.58))))
+        if stamp is not None:
+            for of in outro_frames(last_full.copy(), stamp, n_out, fps, seed):
+                wr.stdin.write(of.tobytes())
+        else:
+            for _ in range(n_out):
+                wr.stdin.write(last_full.tobytes())
     wr.stdin.close(); wr.wait()
     return {"transitions": [{"t": round(c / fps, 3), "name": n} for c, n in zip(cuts, names)],
             "face_overlap_frames": overlap}
 
 
-def _logo(cfg, W: int, H: int):
+def brand_mark(cfg, size: int, color: str | None = None) -> np.ndarray | None:
+    """The channel stamp as a clean RGBA image `size` px wide. The ink is recoloured (white by
+    default) so the navy stamp reads on dark video; transparency is kept as drawn."""
     logo = cfg.at("project.logo")
-    name = cfg.at("project.channel_name")
     for cand in ([cfg.root / logo, cfg.path("paths.assets") / "brand" / Path(logo).name] if logo else []):
         if cand.exists():
-            return gfx.image_sprite(cand, int(min(W, H) * 0.26), int(min(W, H) * 0.1))
-    if name:
-        return gfx.text_sprite(name, int(min(W, H) * 0.035), max_w=int(min(W, H) * 0.4))
+            from PIL import Image
+            img = Image.open(cand).convert("RGBA")
+            img = img.resize((size, max(1, int(round(img.height * size / img.width)))), Image.LANCZOS)
+            a = np.array(img)
+            if a[..., 3].min() < 250:  # transparent stamp: recolour the ink
+                a[..., :3] = gfx.hex_rgb(color or cfg.at("project.logo_color", "#FFFFFF"))
+            return a
     return None
+
+
+def _logo(cfg, W: int, H: int):
+    U = min(W, H)
+    mark_ = brand_mark(cfg, int(U * float(cfg.at("project.logo_size", 0.15))))
+    if mark_ is not None:
+        from PIL import Image, ImageFilter
+        pil = Image.fromarray(mark_)
+        shadow = Image.new("RGBA", pil.size, (0, 0, 0, 0))  # soft dark halo so it reads on bright shots
+        shadow.putalpha(pil.getchannel("A").filter(ImageFilter.GaussianBlur(4)).point(lambda v: v * 0.55))
+        out = Image.new("RGBA", (pil.width + 16, pil.height + 16), (0, 0, 0, 0))
+        out.alpha_composite(shadow, (9, 10)); out.alpha_composite(pil, (8, 8))
+        return np.array(out)
+    name = cfg.at("project.channel_name")
+    if name:
+        return gfx.text_sprite(name, int(U * 0.035), max_w=int(U * 0.4))
+    return None
+
+
+def outro_frames(last: np.ndarray, stamp: np.ndarray, n: int, fps: int, seed: int = 0):
+    """Ending: the picture blurs and dims, then the brand stamp slams into the centre of the
+    screen (falls, hits with a small shake, an ink ring and a few flecks), and holds."""
+    FH, FW = last.shape[:2]
+    rng = np.random.default_rng(seed)
+    U = min(FW, FH)
+    # full-screen backdrop: the last picture, blown up to cover the frame, blurred and dark
+    nz = last.reshape(-1, 3).max(axis=1) > 8
+    ys, xs = np.where(nz.reshape(FH, FW))
+    pic = last[ys.min():ys.max() + 1, xs.min():xs.max() + 1] if len(ys) else last
+    k = max(FW / pic.shape[1], FH / pic.shape[0])
+    big = cv2.resize(pic, (int(pic.shape[1] * k) + 2, int(pic.shape[0] * k) + 2), interpolation=cv2.INTER_LINEAR)
+    y0, x0 = (big.shape[0] - FH) // 2, (big.shape[1] - FW) // 2
+    bg = cv2.GaussianBlur(big[y0:y0 + FH, x0:x0 + FW], (0, 0), U / 30).astype(np.float32) * 0.32
+    yy, xx = np.ogrid[:FH, :FW]
+    bg *= (1 - 0.45 * (((xx - FW / 2) / (FW / 2)) ** 2 + ((yy - FH / 2) / (FH / 2)) ** 2) / 2)[..., None]
+    lastf = last.astype(np.float32)
+    cx, cy = FW / 2, FH / 2
+    r_st = stamp.shape[1] / 2
+    T_IN, T_HIT = 0.10, 0.30
+    flecks = [(rng.uniform(0, 2 * np.pi), rng.uniform(0.25, 0.6) * U, rng.uniform(2, 5) * U / 1080 * 1.6)
+              for _ in range(16)]
+    for i in range(n):
+        t = i / fps
+        a_bg = gfx.clamp01(t / 0.22)
+        f = lastf * (1 - a_bg) + bg * a_bg
+        if t >= T_IN:
+            if t < T_HIT:  # falling toward the paper: big and tilted, speeding up
+                p = (t - T_IN) / (T_HIT - T_IN)
+                sc, ang, al = 2.4 - 1.4 * p * p, -15 + 9 * p, min(1.0, p * 2.5)
+            else:
+                d = t - T_HIT
+                sc = 1 - 0.07 * np.exp(-d * 16) * np.cos(d * 34) + 0.02 * gfx.clamp01(d / 1.5)
+                ang, al = -6.0, 1.0
+            if t >= T_HIT:  # ink ring + flecks
+                d = t - T_HIT
+                ring_a = 0.45 * (1 - gfx.clamp01(d / 0.45))
+                if ring_a > 0.01:
+                    ov = np.zeros_like(f)
+                    cv2.circle(ov, (int(cx), int(cy)), int(r_st * (1.02 + 0.5 * gfx.ease_out_cubic(gfx.clamp01(d / 0.45)))),
+                               (255, 255, 255), max(2, int(U * 0.006)), lineType=cv2.LINE_AA)
+                    f += ov * ring_a
+                fa = 0.8 * (1 - gfx.clamp01(d / 0.6))
+                if fa > 0.01:
+                    ov = np.zeros_like(f)
+                    for th, dist, sz in flecks:
+                        rr = r_st * 0.95 + dist * (1 - np.exp(-d * 7))
+                        cv2.circle(ov, (int(cx + np.cos(th) * rr), int(cy + np.sin(th) * rr)), max(1, int(sz)),
+                                   (255, 255, 255), -1, lineType=cv2.LINE_AA)
+                    f += ov * fa
+                if d < 1 / fps:  # one-frame lift of the whole picture on impact
+                    f *= 1.12
+            gfx.blend(f, stamp, cx, cy, float(sc), al, ang)
+        frame = np.clip(f, 0, 255).astype(np.uint8)
+        k_sh = i - int(round(T_HIT * fps))
+        if 0 <= k_sh < 8:  # short camera shake on impact
+            amp = U * 0.016 * (1 - k_sh / 8)
+            M = np.float32([[1.02, 0, rng.uniform(-amp, amp) - FW * 0.01], [0, 1.02, rng.uniform(-amp, amp) - FH * 0.01]])
+            frame = cv2.warpAffine(frame, M, (FW, FH), borderMode=cv2.BORDER_REFLECT)
+        yield frame
+
+
+STAMP_HIT = 0.30  # seconds into the outro when the stamp lands (keep in sync with outro_frames)
 
 
 def speech_track(cfg, reel: dict, out: Path) -> None:
@@ -257,6 +443,51 @@ def speech_track(cfg, reel: dict, out: Path) -> None:
     delay = int(card * 1000)
     fc = ";".join(parts) + f";{cat}concat=n={len(segs)}:v=0:a=1,adelay={delay}|{delay}[out]"
     run([ffmpeg(), "-y", "-v", "error", *inputs, "-filter_complex", fc, "-map", "[out]", "-c:a", "pcm_s16le", str(out)])
+
+
+def end_at_cuts(events: list[dict], cuts: list[float], window: float = 0.6) -> None:
+    """A graphic that would fade out just after a camera switch ends exactly on the switch, so it
+    never hangs over the new angle for a few frames."""
+    for e in events:
+        for c in sorted(cuts):
+            if e["t_in"] + 0.8 <= c < e["t_out"] and e["t_out"] - c <= window:
+                e["t_out"] = round(c, 3)
+                break
+
+
+# How much a graphic deserves a sound. Only the key beats of a reel get one; the rest stay silent.
+SFX_WEIGHT = {"counter": 3, "image": 2, "broll": 2, "map": 2, "text": 1, "arrow": 0}
+
+
+def choose_sfx(cfg, reel: dict, events: list[dict]) -> list[dict]:
+    """Keep sounds for the moments that matter: a big number, a photo taking over the background,
+    or anything the plan marks with "sfx": true. At most `audio.sfx_max` per reel, never closer
+    than `audio.sfx_min_gap` seconds. "sfx": false silences a moment."""
+    vms = reel.get("visual_moments", [])
+    cands = []
+    for e in events:
+        k = int(e["id"][1:]) if e.get("id", "").startswith("g") and e["id"][1:].isdigit() else -1
+        vm = vms[k] if 0 <= k < len(vms) else {}
+        if vm.get("sfx") is False:
+            continue
+        w = SFX_WEIGHT.get(e["type"], 1) + (1 if e.get("style") == "backdrop" else 0)
+        if vm.get("sfx") is True or vm.get("key"):
+            w = 9
+        if w >= 2:
+            cands.append((w, e))
+    keep, gap = [], float(cfg.at("audio.sfx_min_gap", 5.0))
+    for w, e in sorted(cands, key=lambda c: (-c[0], c[1]["t_in"])):
+        if len(keep) >= int(cfg.at("audio.sfx_max", 4)):
+            break
+        if all(abs(e["t_in"] - o["t_in"]) >= gap for o in keep):
+            keep.append(e)
+    out = []
+    for e in sorted(keep, key=lambda e: e["t_in"]):
+        snd = e.get("sfx") or [{"t": e["t_in"], "kind": e["sfx_in"]}]
+        other = [x for x in snd if x["kind"] != "type"]
+        out += other[:2] if other else snd[:6]  # a marked typewriter line keeps a short burst of keys
+        e["sound"] = True
+    return out
 
 
 def dims(cfg, fmt: str, preview: bool) -> tuple[int, int]:
@@ -326,20 +557,27 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
 
     events = gfx.build_timeline(reel, rw, manifest, fps, duration, cfg.at("gfx.lead_frames", 1),
                                 cfg.at("gfx.default_hold_sec", 2.2), seed)
+    cuts_info = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
+    end_at_cuts(events, cuts_info.get("camera_switches", []) + cuts_info.get("segment_joins", []))
     log.info("%s (%s): %d speech-tied graphics, compositing...", reel["id"], fmt, len(events))
     comp = composite(cfg, reel, rdir, W, H, fps, events, mres["engine"] != "none", preview, seed,
                      framing=(FW, FH, box) if (FW, FH) != (W, H) else None)
 
-    sfx_events = [x for e in events for x in (e.get("sfx") or [{"t": e["t_in"], "kind": e["sfx_in"]}])]
-    sfx_events += [{"t": tr["t"], "kind": transitions.SFX[tr["name"]]} for tr in comp["transitions"]
-                   if transitions.SFX.get(tr["name"])]
+    sfx_events = choose_sfx(cfg, reel, events)
+    if cfg.at("transitions.sfx", False):
+        sfx_events += [{"t": tr["t"], "kind": transitions.SFX[tr["name"]]} for tr in comp["transitions"]
+                       if transitions.SFX.get(tr["name"])]
     if planlib.context_card_sec(reel):
         sfx_events += [{"t": 0.05, "kind": "hit", "gain_db": -2}]
+    if planlib.outro_sec(reel):  # the brand stamp: a soft air pull, then the stamp landing
+        t_out = planlib.content_duration(reel)
+        sfx_events += [{"t": t_out + STAMP_HIT - 0.22, "kind": "swish", "gain_db": -10},
+                       {"t": t_out + STAMP_HIT, "kind": "stamp"}]
     speech = rdir / "speech.wav"
     speech_track(cfg, reel, speech)
     used = audio.mix(cfg, speech, duration, sfx_events, reel.get("mood", "inspirational"), rdir / "mix.wav", seed)
     write_json(rdir / "render.json", {"reel": reel["id"], "format": fmt, "size": [FW, FH], "video_box": list(box),
-                                      "duration": duration, "gfx": events,
+                                      "duration": duration, "outro_sec": planlib.outro_sec(reel), "gfx": events,
                                       **comp, "audio": used, "matte": mres})
     log.info("%s: picture and sound ready (%d transitions, %d SFX, music: %s).", reel["id"],
              len(comp["transitions"]), len(used["sfx"]), Path(used["music"]).name if used["music"] else "none")

@@ -29,8 +29,20 @@ def segments(reel: dict) -> list[dict]:
     return [{"start": parse_ts(s["start"]), "end": parse_ts(s["end"])} for s in segs]
 
 
+OUTRO_SEC = 1.8  # brand stamp at the end of every reel
+
+
 def duration(reel: dict) -> float:
-    return sum(s["end"] - s["start"] for s in segments(reel)) + (context_card_sec(reel))
+    return content_duration(reel) + outro_sec(reel)
+
+
+def content_duration(reel: dict) -> float:
+    """Speech part of the reel (plus the optional context card), without the ending stamp."""
+    return sum(s["end"] - s["start"] for s in segments(reel)) + context_card_sec(reel)
+
+
+def outro_sec(reel: dict) -> float:
+    return 0.0 if reel.get("outro") is False else OUTRO_SEC
 
 
 def context_card_sec(reel: dict) -> float:

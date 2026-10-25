@@ -12,7 +12,7 @@ MUSIC_EXT = ("*.mp3", "*.wav", "*.m4a", "*.aac", "*.flac", "*.ogg")
 
 # Relative loudness per sound type, so the mix stays cinematic rather than cartoonish.
 KIND_DB = {"type": -6, "glitch": -6, "pop": -8, "whoosh": -3, "swish": -5, "hit": -1, "impact": -4,
-           "riser": -4, "count": -3, "shimmer": -5, "ding": -9}
+           "riser": -4, "count": -3, "shimmer": -5, "ding": -9, "stamp": 2}
 
 
 def pick_music(music_dir: Path, mood: str, rng: random.Random) -> Path | None:
@@ -35,7 +35,8 @@ def mix(cfg, speech: Path, duration: float, events: list[dict], mood: str, out: 
     chains = []
     clean = "highpass=f=80,afftdn=nf=-25,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=2" \
         if ac.get("speech_cleanup", True) else "anull"
-    chains.append(f"[0:a]aresample=48000,aformat=channel_layouts=stereo,{clean},asplit=2[sp][sc]")
+    # apad: the speech runs silent through the ending stamp, so the mix lasts the whole reel
+    chains.append(f"[0:a]aresample=48000,aformat=channel_layouts=stereo,{clean},apad=whole_dur={duration:.3f},asplit=2[sp][sc]")
     mix_in = ["[sp]"]
     idx = 1
     used = {"music": str(music) if music else None, "sfx": []}

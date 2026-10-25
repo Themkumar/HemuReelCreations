@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 SR = 48000
-TYPES = ("whoosh", "hit", "riser", "pop", "glitch", "impact", "swish", "type", "ding", "count", "shimmer")
+TYPES = ("whoosh", "hit", "riser", "pop", "glitch", "impact", "swish", "type", "ding", "count", "shimmer", "stamp")
 
 
 def _env(n, attack, release):
@@ -31,7 +31,7 @@ def _lowpass(x, alpha):
     return y
 
 
-LIB_VERSION = 2  # bump when the synthesised sounds change, so old hrc_* files get rebuilt
+LIB_VERSION = 3  # bump when the synthesised sounds change, so old hrc_* files get rebuilt
 
 
 def _bandnoise(rng, n, lo, hi):
@@ -132,6 +132,18 @@ def synth(kind: str, seed: int = 0) -> np.ndarray:
             pos += seg
         x = np.round(x * 12) / 12  # bit-crush
         x = _lowpass(x, 0.35) * _env(n, 0.02, 0.2)
+    elif kind == "stamp":  # rubber stamp slammed on a desk: firm low thud + soft paper slap, small room
+        n = int(SR * 1.1); t = np.arange(n) / SR
+        f = 40 + 30 * np.exp(-t * 22)
+        thud = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 9)
+        body = _lowpass(rng.standard_normal(n), 0.02) * np.exp(-t * 45) * 3.0  # wooden knock
+        slap = _bandnoise(rng, n, 0.02, 0.16) * np.exp(-t * 110) * 0.55        # paper / rubber contact
+        lift = np.zeros(n)  # tiny rubber "kiss" as the stamp lifts off
+        i0 = int(0.32 * SR); m = int(0.05 * SR)
+        tt = np.arange(m) / SR
+        lift[i0:i0 + m] = _bandnoise(rng, m, 0.03, 0.12) * np.sin(np.pi * tt / tt[-1]) * 0.08
+        x = np.tanh((thud * 1.2 + body) * 1.3) + slap + lift
+        x = _reverb(x, rng, 0.7, 0.18, 7)
     else:
         raise ValueError(kind)
     x = x / (np.max(np.abs(x)) + 1e-9) * 0.9
