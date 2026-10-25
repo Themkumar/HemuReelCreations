@@ -1,0 +1,20 @@
+[project]
+name = "hemureelcreations"
+version = "0.1.0"
+description = "Telugu podcast to 9:16 reels with 5-language karaoke subtitles"
+requires-python = ">=3.10"
+dependencies = ["numpy", "opencv-python-headless>=4.8,<5", "pillow", "pyyaml", "requests"]
+
+[project.scripts]
+hrc = "hrc.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

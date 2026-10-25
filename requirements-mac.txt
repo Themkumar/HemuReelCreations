@@ -1,0 +1,9 @@
+# Apple Silicon extras: real word alignment, MPS matting, face tracking, cut-outs
+-r requirements.txt
+torch>=2.3            # Robust Video Matting on MPS
+torchvision>=0.18
+whisperx>=3.1         # forced alignment of the SRT text (Telugu wav2vec2)
+mlx-whisper>=0.4      # fast Whisper word timestamps on Apple Silicon (fallback)
+mediapipe>=0.10.9,<0.10.15   # face detection + selfie matte fallback (keeps the legacy solutions API)
+rembg>=2.0.50         # background removal for image cut-outs
+onnxruntime>=1.17
