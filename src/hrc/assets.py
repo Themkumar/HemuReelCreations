@@ -90,8 +90,17 @@ def _cutout(path: Path) -> Path:
         from rembg import remove  # type: ignore
         from PIL import Image
 
+        import numpy as np
+
+        src = Image.open(path).convert("RGBA")
+        cut = remove(src)
+        before = (np.asarray(src)[..., 3] > 16).mean()
+        after = (np.asarray(cut)[..., 3] > 16).mean()
+        if before and after / before < 0.15:  # flags, logos, icons: rembg eats them, keep the full picture
+            log.debug("background removal dropped %s (kept %.0f%%)", path.name, 100 * after / before)
+            return path
         out = path.with_name(path.stem + "_cut.png")
-        remove(Image.open(path)).save(out)
+        cut.save(out)
         return out
     except Exception as exc:
         log.debug("background removal skipped for %s: %s", path.name, exc)

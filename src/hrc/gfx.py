@@ -84,10 +84,10 @@ def text_block_sprite(text: str, size: int, max_w: int, **kw) -> np.ndarray:
     if one.shape[1] <= max_w or len(words) < 2:
         return one if one.shape[1] <= max_w else text_sprite(text, size, max_w=max_w, **kw)
     best = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
-    lines = [text_sprite(" ".join(words[:best]), size, max_w=max_w, **kw),
-             text_sprite(" ".join(words[best:]), size, max_w=max_w, **kw)]
+    lines = [trim(text_sprite(" ".join(words[:best]), size, max_w=max_w, **kw), size // 8),
+             trim(text_sprite(" ".join(words[best:]), size, max_w=max_w, **kw), size // 8)]
     w = max(l.shape[1] for l in lines)
-    gap = -int(size * 0.35)
+    gap = -int(size * 0.12)
     h = lines[0].shape[0] + lines[1].shape[0] + gap
     out = np.zeros((h, w, 4), np.uint8)
     y = 0
@@ -284,6 +284,7 @@ class GfxRenderer:
         self.particles = Particles(W, H, seed=seed, color=self.c1)
         self.sprites: dict[str, np.ndarray] = {}
         self.side: dict[str, int] = {}
+        self.layouts: dict[str, dict] = {}
         self.rng = np.random.default_rng(seed)
         self.shake_px = 3.0 * min(W, H) / 1080
 
@@ -324,6 +325,59 @@ class GfxRenderer:
                 return float(self.rng.uniform(-k, k)), float(self.rng.uniform(-k, k))
         return 0.0, 0.0
 
+    # ---- layout -------------------------------------------------------------------------------
+    def _band(self, head: dict) -> tuple[float, float]:
+        """Portrait: the strip between the top safe edge and the top of the speaker's hair."""
+        top = self.H * 0.075  # below the phone's top bar and the channel logo
+        bot = head["y"] - max(head["size"], self.U * 0.12) * 0.62
+        return top, bot
+
+    def _layout(self, ev: dict, head: dict) -> dict:
+        """Size and place an element once, on its first frame, so it never jumps while on screen."""
+        if ev["id"] in self.layouts:
+            return self.layouts[ev["id"]]
+        W, H, U = self.W, self.H, self.U
+        hx, hy, hs = head["x"], head["y"], max(head["size"], U * 0.12)
+        t = ev["type"]
+        lay: dict = {"mode": "free"}
+        if not self.landscape and ev["anchor"] != "top_split":
+            top, bot = self._band(head)
+            band = bot - top
+            if band >= U * 0.14:  # enough sky above the head: use it, like trending podcast reels
+                lay["mode"] = "band"
+                if t == "text":
+                    # bottom ~25% of the letters tucks behind the hair: the "text behind the person" look
+                    spr = fit_text(ev["text"], int(W * 0.94), band * 1.33, int(U * 0.3), int(U * 0.1),
+                                   fill=self.c1, glow=self.c2)
+                    lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2)
+                elif t in ("image", "broll") and ev.get("file"):
+                    ih = band * 1.15
+                    img = trim(image_sprite(Path(ev["file"]), int(W * 0.42), int(ih)))
+                    spr = img
+                    if ev.get("label"):
+                        lab = fit_text(ev["label"], int(W * 0.94 - img.shape[1]), ih * 0.6, int(U * 0.12),
+                                       int(U * 0.05), glow=self.c2)
+                        spr = _row(img, lab)
+                    lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2)
+                elif t == "counter":
+                    target = band * 1.05
+                    lab = fit_text(ev["text"], int(W * 0.9), target * 0.3, int(U * 0.1), int(U * 0.045), glow=self.c2)
+                    nsize = _size_for_height(str(ev.get("value") or "0"), target - lab.shape[0] * 0.8, int(U * 0.24))
+                    lay.update(spr=lab, num_size=nsize, cx=W / 2)
+                    num_h = trim(text_sprite("8,888", nsize)).shape[0]
+                    lay["num_cy"] = top + num_h / 2
+                    lay["cy"] = top + num_h * 0.95 + lab.shape[0] / 2
+                else:
+                    lay["mode"] = "free"
+        if lay["mode"] == "free":
+            spr = self._sprite(ev, head)
+            if self.landscape and t == "text":  # keep big words clear of the captions
+                spr = fit_text(ev["text"], int(W * 0.94), H * 0.5, int(U * 0.3), int(U * 0.1), fill=self.c1, glow=self.c2)
+            lay["spr"] = spr
+            lay["num_size"] = int(U * 0.22)
+        self.layouts[ev["id"]] = lay
+        return lay
+
     def draw_behind(self, layer: np.ndarray, t: float, head: dict) -> list[tuple]:
         """Draw onto the background layer. Returns boxes of drawn elements (for QA)."""
         boxes = []
@@ -348,24 +402,46 @@ class GfxRenderer:
                 alpha *= 1.0 if p_in >= 1 or self.rng.random() > 0.35 else 0.0
                 dx = self.rng.uniform(-30, 30) * (1 - p_in)
             scale *= 0.7 + 0.3 * p_out
-            spr = self._sprite(ev, head)
-            bob = math.sin(local * 2.4) * 10
-            sh = spr.shape[0] * scale
-            above = max(sh / 2 + self.H * 0.04, hy - hs * 0.75 - sh * 0.25)  # sits over the head, bottom tucked behind it
-            if ev["anchor"] == "behind_head":
-                glow_aura(layer, hx, hy, hs * 2.6, self.c2, 0.35 * alpha)
-                cx, cy = self.W / 2 + (hx - self.W / 2) * 0.25, above + bob
-            elif ev["anchor"] == "top_split":
-                cx, cy = self.W / 2, max(sh / 2 + self.H * 0.04, self.H * 0.17)
-            elif not self.landscape:  # portrait has no room beside the head: float above it
-                cx, cy = self.W / 2 + (hx - self.W / 2) * 0.2, above + bob
+            lay = self._layout(ev, head)
+            spr = lay["spr"]
+            sh, sw = spr.shape[0] * scale, spr.shape[1] * scale
+            num_cy = None
+            if lay["mode"] == "band":
+                bob = math.sin(local * 2.0) * self.U * 0.004
+                cx, cy = lay["cx"], lay["cy"] + bob
+                num_cy = lay.get("num_cy", 0) + bob
+                if ev["anchor"] == "behind_head":
+                    glow_aura(layer, hx, hy, hs * 2.6, self.c2, 0.3 * alpha)
             else:
-                side = self.side.setdefault(ev["id"], -1 if hx > self.W / 2 else 1)
-                cx = hx + side * (hs * 0.9 + spr.shape[1] * 0.5 * scale)
-                cx = min(max(cx, spr.shape[1] * 0.5), self.W - spr.shape[1] * 0.5)
-                cy = hy - hs * 0.3 + bob
-                dx *= side
-            cx, cy = cx + dx + (hx - self.W / 2) * 0.08, cy + dy  # parallax with the head
+                bob = math.sin(local * 2.4) * self.U * 0.008
+                above = max(sh / 2 + self.H * 0.04, hy - hs * 0.75 - sh * 0.25)
+                if ev["anchor"] == "behind_head":
+                    glow_aura(layer, hx, hy, hs * 2.6, self.c2, 0.35 * alpha)
+                    if self.landscape:  # sit on top of the head, only the bottom of the letters tucked behind
+                        cx, cy = self.W / 2, hy - hs * 0.62 - sh * 0.38 + bob
+                    else:
+                        cx, cy = self.W / 2 + (hx - self.W / 2) * 0.25, above + bob
+                elif ev["anchor"] == "top_split":
+                    cx, cy = self.W / 2, max(sh / 2 + self.H * 0.04, self.H * 0.17)
+                elif not self.landscape:
+                    cx, cy = self.W / 2 + (hx - self.W / 2) * 0.2, above + bob
+                else:
+                    side = self.side.setdefault(ev["id"], -1 if hx > self.W / 2 else 1)
+                    cx = hx + side * (hs * 0.9 + sw * 0.5)
+                    cy = hy - hs * 0.3 + bob
+                    dx *= side
+                cx, cy = cx + (hx - self.W / 2) * 0.08, cy
+                extra_top = 0.0
+                if ev["type"] == "counter":
+                    extra_top = trim(text_sprite("8,888", lay["num_size"])).shape[0] * scale
+                # keep the whole element (counter number included) on screen and above the captions
+                top_margin = self.H * 0.04 if ev["anchor"] == "behind_head" else self.U * 0.15  # clear of the logo
+                lo = top_margin + extra_top + sh / 2
+                hi_ = self.H * (0.7 if self.landscape else 0.6) - sh / 2
+                cy = min(max(cy, lo), max(lo, hi_))
+                cx = min(max(cx, sw / 2 + self.W * 0.02), self.W - sw / 2 - self.W * 0.02)
+                num_cy = cy - sh / 2 - extra_top / 2
+            cx, cy = cx + dx, cy + dy
             blend(layer, spr, cx, cy, scale, alpha)
             if ev["type"] == "counter" and ev.get("value"):
                 try:
@@ -373,14 +449,13 @@ class GfxRenderer:
                     suffix = "%" if str(ev["value"]).endswith("%") else ("+" if str(ev["value"]).endswith("+") else "")
                     cur = target * ease_out_cubic(clamp01(local / 1.0))
                     num = f"{int(cur):,}{suffix}" if target >= 10 else f"{cur:.1f}{suffix}"
-                    blend(layer, text_sprite(num, int(self.U * 0.22), fill=self.c1, glow=self.c2),
-                          cx, cy - spr.shape[0] * 0.9, scale, alpha)
+                    blend(layer, trim(text_sprite(num, lay["num_size"], fill=self.c1, glow=self.c2)),
+                          cx, num_cy + dy, scale, alpha)
                 except ValueError:
                     pass
             elif ev["type"] == "arrow":
                 blend(layer, self._label(ev), cx, cy - 110, scale, alpha)
-            h, w = spr.shape[:2]
-            boxes.append((ev["id"], cx - w * scale / 2, cy - h * scale / 2, cx + w * scale / 2, cy + h * scale / 2))
+            boxes.append((ev["id"], cx - sw / 2, cy - sh / 2, cx + sw / 2, cy + sh / 2))
         return boxes
 
     @lru_cache(maxsize=64)
@@ -402,4 +477,45 @@ def _stack(top: np.ndarray, bottom: np.ndarray) -> np.ndarray:
     a = bottom[..., 3:4] / 255.0
     region[..., :3] = (bottom[..., :3] * a + region[..., :3] * (1 - a)).astype(np.uint8)
     region[..., 3] = np.maximum(region[..., 3], bottom[..., 3])
+    return out
+
+
+def trim(spr: np.ndarray, margin: int = 6) -> np.ndarray:
+    """Crop a sprite to its visible pixels (text sprites carry big padding)."""
+    ys, xs = np.nonzero(spr[..., 3] > 8)
+    if not len(ys):
+        return spr
+    y0, y1 = max(0, ys.min() - margin), min(spr.shape[0], ys.max() + margin + 1)
+    x0, x1 = max(0, xs.min() - margin), min(spr.shape[1], xs.max() + margin + 1)
+    return np.ascontiguousarray(spr[y0:y1, x0:x1])
+
+
+def fit_text(text: str, max_w: int, max_h: float, start: int, min_size: int, **kw) -> np.ndarray:
+    """Biggest text block (1 line, or 2 balanced lines) that fits max_w x max_h."""
+    size = start
+    while True:
+        one = trim(text_sprite(text, size, **kw))
+        cands = [one] + ([trim(text_block_sprite(text, size, max_w, **kw))] if len(text.split()) > 1 else [])
+        for spr in cands:
+            if spr.shape[0] <= max_h and spr.shape[1] <= max_w:
+                return spr
+        if size <= min_size:
+            return trim(text_block_sprite(text, size, max_w, **kw))
+        size = max(min_size, int(size * 0.92))
+
+
+def _size_for_height(text: str, max_h: float, start: int) -> int:
+    size = start
+    while size > 30 and trim(text_sprite(text, size)).shape[0] > max_h:
+        size = int(size * 0.9)
+    return size
+
+
+def _row(left: np.ndarray, right: np.ndarray, gap: int = 18) -> np.ndarray:
+    """Image with its label beside it, vertically centred."""
+    h = max(left.shape[0], right.shape[0])
+    out = np.zeros((h, left.shape[1] + gap + right.shape[1], 4), np.uint8)
+    for spr, x in ((left, 0), (right, left.shape[1] + gap)):
+        y = (h - spr.shape[0]) // 2
+        out[y:y + spr.shape[0], x:x + spr.shape[1]] = spr
     return out

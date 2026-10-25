@@ -153,7 +153,7 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     names = transitions.choose(len(cuts), reel.get("mood", "inspirational"), cfg.at("transitions.library"), seed)
     yy, xx = np.ogrid[:H, :W]
     vig = (1 - 0.35 * ((((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2))[..., None].astype(np.float32)
-    logo = _logo(cfg, W)
+    logo = _logo(cfg, W, H)
     enc = video_encoder_args(cfg, preview) if preview else ["-c:v", "libx264", "-preset", "fast", "-crf", "15", "-pix_fmt", "yuv420p"]
     wr = _writer(rdir / "clean.mp4", W, H, fps, enc)
     mats = matte._frames(mfile, W, H) if has_matte else None
@@ -197,14 +197,14 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
             "face_overlap_frames": overlap}
 
 
-def _logo(cfg, W: int):
+def _logo(cfg, W: int, H: int):
     logo = cfg.at("project.logo")
     name = cfg.at("project.channel_name")
     for cand in ([cfg.root / logo, cfg.path("paths.assets") / "brand" / Path(logo).name] if logo else []):
         if cand.exists():
             return gfx.image_sprite(cand, int(min(W, H) * 0.26), int(min(W, H) * 0.1))
     if name:
-        return gfx.text_sprite(name, int(W * 0.035), max_w=int(W * 0.4))
+        return gfx.text_sprite(name, int(min(W, H) * 0.035), max_w=int(min(W, H) * 0.4))
     return None
 
 
