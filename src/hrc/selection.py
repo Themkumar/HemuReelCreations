@@ -29,7 +29,7 @@ Return JSON exactly in this shape:
     "title": "short English working title",
     "segments": [{{"start": "00:12:03.400", "end": "00:12:48.900"}}],
     "hook": "Telugu hook line (as spoken, or a title card)",
-    "headline": {"te": "headline over the video, key words in *stars*", "en": "...", "hi": "...", "ta": "...", "kn": "..."},
+    "headline": {{"te": "headline over the video, key words in *stars*", "en": "...", "hi": "...", "ta": "...", "kn": "..."}},
     "emotional_peak": "00:12:31.000",
     "why": "why this works, one sentence",
     "virality": 8.5,
