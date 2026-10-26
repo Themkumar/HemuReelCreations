@@ -485,10 +485,20 @@ class GfxRenderer:
         hx, hy, hs = head["x"], head["y"], max(head["size"], U * 0.12)
         t = ev["type"]
         lay: dict = {"mode": "free"}
-        if self.landscape and t in ("image", "broll", "text", "counter"):
+        tight = (self.fullbleed and not self.landscape and ev["anchor"] != "top_split"
+                 and (lambda b: b[1] - b[0])(self._band(head)) < U * 0.14)
+        if (self.landscape or tight) and t in ("image", "broll", "text", "counter"):
+            # landscape, or a full-screen close-up with no sky above the head: use the open side of the
+            # frame, so the words stay readable instead of hiding behind the face
             side = -1 if hx > W / 2 else 1  # the open side of the frame
-            top_lim = H * 0.05 if side < 0 else H * 0.2  # right side: stay under the channel logo
+            if self.landscape:
+                top_lim = H * 0.05 if side < 0 else H * 0.2  # right side: stay under the channel logo
+            else:
+                top_lim = H * 0.075 if side < 0 else H * 0.11
             room, inner, upper = self._side_room(side, hx, hs)
+            if tight:  # let the inner edge tuck a little behind the head: the "text behind the person" look
+                tuck = hs * 0.2
+                room, inner = room + tuck, inner - side * tuck
             if t == "counter":  # big number over its label, on the open side (never behind the head)
                 return self._side_counter(ev, lay, side, room, inner, upper, hy, hs, top_lim)
             label = ev.get("label") if t != "text" else ev["text"]
@@ -499,7 +509,7 @@ class GfxRenderer:
             typed = ev.get("anim") == "typewriter" and "img" not in lay
             max_h = (hy + hs * 0.4 - top_lim) if upper else H * (0.42 if "img" in lay else 0.7)
             stack = stack_text(label or "", int(min(room * 0.9, W * 0.46)), int(max(max_h, H * 0.18)),
-                               U, self.c2, typewriter=typed, meta=typed) if label else None
+                               U, self.c1 if tight else self.c2, typewriter=typed, meta=typed) if label else None
             if typed and stack is not None:
                 stack, lay["lines"] = stack
             spr = stack
@@ -875,8 +885,8 @@ def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43),
     words = label.split()
     if not words:
         return np.zeros((2, 2, 4), np.uint8)
-    marked = [w.startswith("*") and w.endswith("*") for w in words]
-    words = [w.strip("*") for w in words]
+    marked = [w.count("*") >= 2 for w in words]  # *word*, also with quotes or commas around it
+    words = [w.replace("*", "") for w in words]
     if not any(marked):
         k = max(range(len(words)), key=lambda i: len(words[i]))
         marked = [i == k for i in range(len(words))]

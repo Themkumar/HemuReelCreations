@@ -212,6 +212,7 @@ A reel can switch off its ending with `"outro": false`.
 ## Version history
 
 - **v0.8** English-only, reference-reel look: full-screen close-up with a cinematic grade, small-white + big-serif captions, second word-timing pass and sound-onset landing for graphics, graphics pinned to the room, 1–2 s listener reaction shots, cut-out only where needed with BiRefNet edges, phone previews.
+- **v0.8.1** Full-screen close-ups with no room above the head: big words, numbers and pictures move to the open side of the frame (tucking a little behind the head) so they stay readable.
 - **v0.7.1** Depth-based object cut-out (mic arm, mug, tabletop), tuned on the real footage.
 - **v0.7** Cut-out keeps the mic, cups and bottles in front; HD photos (2400 px+, commercial licences) with candidate sheets and `"pick"`; crisp, configurable photo look; photo and HD still on their own Resolve tracks; every graphic's words as editable Resolve text.
 - **v0.6** Layered DaVinci Resolve pack (`hrc resolve`), illustrated README, 10 reels from HemuXSrinadh_Part1.

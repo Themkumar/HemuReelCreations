@@ -308,3 +308,18 @@ def test_punch_captions_lead_words_stay_under_hero():
     hero = [l for l in ass.splitlines() if ",Hero," in l]
     assert lead[-1].split(",")[2] == hero[0].split(",")[2]  # lead line stays up while the hero word shows
     assert "In This Entire" in lead[-1] and "Unpredictable" in hero[0]
+
+
+def test_fullbleed_close_up_keeps_big_words_off_the_face():
+    """Full-screen close-up with no sky above the head: the words go to the open side, readable."""
+    from hrc.gfx import GfxRenderer
+    ev = dict(id="a", type="text", text="REJECTION *FOLDER*", anchor="behind_head", anim="pop",
+              t_in=0, t_out=3, value=None, label=None)
+    r = GfxRenderer([ev], 1080, 1920, 30, ["#FFD400", "#E8252B"])
+    r.fullbleed = True
+    head = {"x": 640.0, "y": 450.0, "size": 420.0}
+    layer = np.zeros((1920, 1080, 3), np.float32)
+    (_, x0, y0, x1, y1), = r.draw_behind(layer, 1.0, head)
+    face_left = head["x"] - head["size"] / 2
+    overlap = max(0.0, x1 - face_left) / (x1 - x0)
+    assert overlap < 0.15 and x0 >= 0 and y0 >= 1920 * 0.07
