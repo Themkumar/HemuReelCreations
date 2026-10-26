@@ -356,3 +356,24 @@ def test_hero_word_picks_the_starred_word():
     assert hero_word("REJECTION *FOLDER*") == "FOLDER"
     assert hero_word("PAIN *GONE*") == "GONE"
     assert hero_word("AND COUNTING") == "COUNTING"
+
+
+def test_looks_switch_text_style_per_reel():
+    from hrc import config, looks
+    cfg = config.load(Path(__file__).resolve().parents[1] / "config.yaml")
+    c = looks.for_reel(cfg, {"id": "r", "look": "classic"})
+    assert c.at("subtitles.style") == "classic" and not c.at("gfx.hero_word")
+    g = looks.for_reel(cfg, {"id": "r", "look": "glow"})
+    assert g.at("subtitles.style") == "punch" and not g.at("subtitles.punch.ref_style")
+    s = looks.for_reel(cfg, {"id": "r", "look": "slab"})
+    assert s.at("gfx.hero_word") and s.at("subtitles.punch.ref_style")
+    assert looks.for_reel(cfg, {"id": "r"}) is cfg
+
+
+def test_quick_words_are_grouped_so_captions_stay_readable():
+    from hrc.karaoke import merge_quick_beats
+    w = lambda t, s, e, **k: {"w": t, "start": s, "end": e, **k}
+    beats = [([], w("Right", 0.0, 0.2)), ([], w("then", 0.2, 0.4)), ([], w("everything", 1.0, 1.5)),
+             ([], w("*changed*", 1.6, 2.2, hero=True))]
+    out = merge_quick_beats(beats, 0.65, 13)
+    assert out[0][1]["w"] == "Right then" and len(out) == 3

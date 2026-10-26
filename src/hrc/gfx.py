@@ -413,6 +413,8 @@ class GfxRenderer:
         self.cams: list[dict] | None = None  # per-frame head + camera crop [x, y, scale]: pins graphics to the room
         self.switches: list[int] = []  # frames where the picture changes shot (tracking re-anchors there)
         self.fullbleed = False  # portrait close-up filling the frame: big words sit behind the head
+        self.big_counters = False  # counters as a big number across the picture (also outside the slab look)
+        self._num_cache: dict = {}
         self.hero = None  # v0.8.2: {"font", "color", "width"}: text moments become ONE huge word behind the speaker
         self.fullpic = False  # v0.8.2: photo moments fill the whole picture with a stacked block of words over it
         self.front_full = None
@@ -495,6 +497,8 @@ class GfxRenderer:
         lay: dict = {"mode": "free"}
         if self.hero and t == "text":
             return self._hero_layout(ev, lay, hy, hs)
+        if t == "counter" and ev.get("value") and not self.fullbleed and (self.hero or self.big_counters):
+            return self._bignum_layout(ev, lay, hy, hs)
         if self.fullpic and t in ("image", "broll") and ev.get("file"):
             return self._fullpic_layout(ev, lay)
         tight = (self.fullbleed and not self.landscape and ev["anchor"] != "top_split"
@@ -594,8 +598,44 @@ class GfxRenderer:
             size = int(size * 0.94)
         spr = soft_shadow(spr, max(4, size // 22), 0.55)
         cy = hy + hs * 0.4 + spr.shape[0] / 2  # across the shoulders: the letters start just under the chin
+        if self._close_up(hs):  # close-up: the body fills the frame and would hide the word, so it
+            cy = H * 0.8          # sits in front, low over the chest, where it reads and the face stays clear
+            lay["front"] = True
         cy = min(max(cy, spr.shape[0] / 2 + H * 0.03), H - spr.shape[0] / 2 - H * 0.03)
         lay.update(mode="hero", spr=spr, cx=W / 2, cy=cy)
+        self.layouts[ev["id"]] = lay
+        return lay
+
+    def _close_up(self, hs: float) -> bool:
+        """A tight camera angle: the face is big in the picture (wide shots are ~0.12-0.15 of the height)."""
+        return not self.fullbleed and hs > self.H * float(getattr(self, "close_up_face", 0.22))
+
+    def _bignum_layout(self, ev: dict, lay: dict, hy: float, hs: float) -> dict:
+        """Counter as a big statement: the number huge across the picture (slab red in the slab look,
+        glowing yellow Anton otherwise), counting up, with its label under it. Behind the speaker on
+        wide shots; in front and low on close-ups."""
+        W, H, U = self.W, self.H, self.U
+        final = format_value(*parse_value(ev.get("value")))
+        font = self.hero["font"] if self.hero else True
+        fill = self.hero["color"] if self.hero else self.c1
+        glow = None if self.hero else self.c2
+        max_w, max_h = W * 0.62, H * 0.34
+        size = int(U * 0.7)
+        while size > 24:
+            t = trim(text_sprite(final, size, fill=fill, display=font, glow=glow, stroke_w=0 if self.hero else None), 4)
+            if t.shape[1] <= max_w and t.shape[0] <= max_h:
+                break
+            size = int(size * 0.93)
+        num_h = t.shape[0]
+        lab = trim(text_sprite((ev.get("label") or ev.get("text") or "").replace("*", "").upper(), max(24, int(size * 0.26)),
+                               display=True, max_w=int(W * 0.8)), 4) if (ev.get("label") or ev.get("text")) else None
+        lab = soft_shadow(lab, max(3, size // 40), 0.7) if lab is not None else np.zeros((2, 2, 4), np.uint8)
+        total = num_h + lab.shape[0]
+        front = self._close_up(hs)
+        top = (H * 0.8 - total / 2) if front else (hy + hs * 0.35)
+        top = min(max(top, H * 0.03), H - total - H * 0.03)
+        lay.update(mode="bignum", spr=lab, cx=W / 2, num_cy=top + num_h / 2, cy=top + num_h + lab.shape[0] / 2,
+                   num_size=size, num_font=font, num_fill=fill, num_glow=glow, final=final, front=front)
         self.layouts[ev["id"]] = lay
         return lay
 
@@ -681,9 +721,9 @@ class GfxRenderer:
             anim = ev["anim"]
             if anim == "pop":
                 scale = ease_out_back(p_in)
-            elif anim == "zoom":  # settles in from slightly big, like a camera push
-                q = ease_out_cubic(clamp01(local / 0.4))
-                scale = 1 + 0.3 * (1 - q); alpha *= clamp01(local / 0.25)
+            elif anim == "zoom":  # settles in from slightly big, like a slow camera push
+                q = ease_out_cubic(clamp01(local / 0.5))
+                scale = 1 + 0.12 * (1 - q); alpha *= ease_out_cubic(clamp01(local / 0.35))
             elif anim == "slide":
                 dx = (1 - ease_out_cubic(p_in)) * self.W * 0.35; alpha *= clamp01(local / 0.2)
             elif anim == "fade":
@@ -695,14 +735,40 @@ class GfxRenderer:
             lay = self._layout(ev, hd)
             spr = lay["spr"]
             if lay["mode"] == "hero":  # pops in on the word, then breathes very slightly; pinned to the room
-                sc = ease_out_back(clamp01(local / 0.22), 2.2) * (1 + 0.025 * clamp01(local / 2.5))
-                a = alpha * clamp01(local / 0.08)
+                # cinematic landing: settles in from slightly big over ~0.45 s, then a slow push
+                sc = (1 + 0.08 * (1 - ease_out_cubic(clamp01(local / 0.45)))) * (1 + 0.03 * clamp01(local / 3.0))
+                a = alpha * ease_out_cubic(clamp01(local / 0.3))
                 cx, cy, sc2 = lay["cx"], lay["cy"], sc
                 if tr:
                     cx, cy, sc2 = cx * k_t + ox, cy * k_t + oy, sc * k_t
-                blend(layer, spr, cx, cy, sc2, a)
+                if lay.get("front"):
+                    self.front_ops.append((spr, cx, cy, sc2, a))
+                else:
+                    blend(layer, spr, cx, cy, sc2, a)
                 h2, w2 = spr.shape[0] * sc2, spr.shape[1] * sc2
-                boxes.append((ev["id"], cx - w2 / 2, cy - h2 / 2, cx + w2 / 2, cy + h2 / 2))
+                boxes.append((ev["id"] + ("!front" if lay.get("front") else ""), cx - w2 / 2, cy - h2 / 2, cx + w2 / 2, cy + h2 / 2))
+                continue
+            if lay["mode"] == "bignum":  # the number counts up, huge; the label under it
+                prefix, target, suffix, dec = parse_value(ev["value"])
+                cur = format_value(prefix, target * ease_out_cubic(clamp01(local / 1.2)), suffix, dec)
+                key = (ev["id"], cur)
+                num = self._num_cache.get(key)
+                if num is None:
+                    num = trim(text_sprite(cur, lay["num_size"], fill=lay["num_fill"], display=lay["num_font"],
+                                           glow=lay["num_glow"], stroke_w=0 if self.hero else None), 4)
+                    num = soft_shadow(num, max(4, lay["num_size"] // 22), 0.55)
+                    self._num_cache = {k: v for k, v in self._num_cache.items() if k[0] == ev["id"]}
+                    self._num_cache[key] = num
+                sc = (1 + 0.08 * (1 - ease_out_cubic(clamp01(local / 0.45)))) * (1 + 0.03 * clamp01(local / 3.0))
+                a = alpha * ease_out_cubic(clamp01(local / 0.3))
+                cx, ncy, lcy, sc2 = lay["cx"], lay["num_cy"], lay["cy"], sc
+                if tr:
+                    cx, ncy, lcy, sc2 = cx * k_t + ox, ncy * k_t + oy, lcy * k_t + oy, sc * k_t
+                put = (lambda *a_: self.front_ops.append(a_)) if lay.get("front") else (lambda *a_: blend(layer, *a_))
+                put(num, cx, ncy, sc2, a)
+                put(spr, cx, lcy, max(0.01, sc2), a * clamp01((local - 0.15) / 0.2))
+                h2, w2 = num.shape[0] * sc2, num.shape[1] * sc2
+                boxes.append((ev["id"] + ("!front" if lay.get("front") else ""), cx - w2 / 2, ncy - h2 / 2, cx + w2 / 2, lcy + spr.shape[0] / 2))
                 continue
             if lay["mode"] == "fullpic":  # covers the whole picture, speaker included (drawn in front)
                 a_bd = clamp01(local / 0.12) * clamp01(out_left / 0.12)

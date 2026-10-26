@@ -139,14 +139,19 @@ def reel_words(reel: dict, words: list[dict]) -> list[dict]:
         rt = to_reel_time(reel, mid)
         if rt is None:
             continue
-        s = to_reel_time(reel, max(w["start"], _seg_of(reel, mid)["start"]))
-        e = to_reel_time(reel, min(w["end"], _seg_of(reel, mid)["end"]))
+        seg = _seg_of(reel, mid)
+        base = rt - (mid - seg["start"])  # reel time where this word's segment begins
+        # measured inside the word's own segment: a segment that ends exactly where another (played
+        # elsewhere in the reel) begins must not pull the word's start into the other one
+        s = base + (max(w["start"], seg["start"]) - seg["start"])
+        e = base + (min(w["end"], seg["end"]) - seg["start"])
         out.append({**w, "start": round(s, 3), "end": round(e, 3), "src_start": w["start"]})
+    out.sort(key=lambda w: w["start"])  # reel order (a cold open plays a later part of the talk first)
     return out
 
 
 def _seg_of(reel: dict, t: float) -> dict:
-    for s in segments(reel):
+    for s in segments(reel):  # same order as to_reel_time, so both pick the same segment
         if s["start"] <= t <= s["end"]:
             return s
     raise ValueError(t)

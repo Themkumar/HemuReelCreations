@@ -99,7 +99,10 @@ def _render(cfg, a, preview):
     man = cfg.path("paths.assets") / "manifest.json"
     manifest = read_json(man) if man.exists() else {}
     formats = (a.formats.split(",") if a.formats else cfg.at("reel.formats", ["reel"]))
+    from . import looks
+    base_cfg = cfg
     for reel in planlib.selected(plan, a.reel):
+        cfg = looks.for_reel(base_cfg, reel)  # the reel's text look (classic / glow / slab)
         for fmt in formats:
             rdir = render.render_reel(cfg, reel, words, manifest, preview=preview, force=a.force, fmt=fmt)
             export.export_reel(cfg, reel, rdir, preview=preview, langs=(a.langs.split(",") if a.langs else None))
@@ -113,8 +116,11 @@ def _render(cfg, a, preview):
 def cmd_resolve(cfg, a):
     """Rebuild the layered Resolve pack from an existing render (after editing fonts or colours)."""
     from . import plan as planlib, resolve, render
+    from . import looks
     plan = planlib.approved(cfg)
+    base_cfg = cfg
     for reel in planlib.selected(plan, a.reel):
+        cfg = looks.for_reel(base_cfg, reel)
         rdir = cfg.dir("renders") / (reel["id"] + render.suffix("reel", False))
         if not (rdir / "render.json").exists():
             raise FileNotFoundError(f"{reel['id']} is not rendered yet. Run `hrc render --reel {reel['id']}` first.")

@@ -125,13 +125,16 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
         rend = gfx.GfxRenderer([ev], bw, bh, fps, colors, info.get("seed", 0))
         rend.particles = _NoParticles()
         rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and bh > bw
+        from .render import style_renderer
+        style_renderer(cfg, rend)
         if cfg.at("gfx.track", True):  # same pinned-to-the-room movement as the finished render
             rend.cams = heads
             cj = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
             rend.switches = sorted(int(round(t * fps)) for t in cj.get("camera_switches", [])
                                    + cj.get("segment_joins", []) + cj.get("reaction_cuts", []))
         photo = None
-        if ev.get("file") and ev["type"] in ("image", "broll") and rend._wants_backdrop(ev):
+        fullpic = rend.fullpic and ev.get("file") and ev["type"] in ("image", "broll")
+        if not fullpic and ev.get("file") and ev["type"] in ("image", "broll") and rend._wants_backdrop(ev):
             photo = _photo_layers(cfg, ev, rend, heads, media, box, FW, FH, f0, f1, fps)
             rend.backdrop_mode = "skip"
         out = media / "gfx" / f"{ev['id']}.mov"
@@ -150,11 +153,17 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
             state = rend.rng.bit_generator.state
             rend.draw_behind(blk, t, head)
             ops = list(getattr(rend, "front_ops", []))
+            full = getattr(rend, "front_full", None)  # full-picture photo moment (covers the speaker)
             rend.rng.bit_generator.state = state  # same glitch/random choices on both passes
             rend.draw_behind(wht, t, head)
             wr.stdin.write(_canvas_rgba(unmix(blk, wht), FW, FH, box).tobytes())
-            if ops:
+            if ops or full is not None:
                 fb, fw_ = np.zeros((bh, bw, 3), np.float32), np.full((bh, bw, 3), 255.0, np.float32)
+                if full is not None:
+                    img, a_full = full
+                    for dst in (fb, fw_):
+                        dst *= (1 - a_full)
+                        dst += img * a_full
                 for op in ops:
                     gfx.blend(fb, *op); gfx.blend(fw_, *op)
                 front_frames.append((i, _canvas_rgba(unmix(fb, fw_), FW, FH, box)))

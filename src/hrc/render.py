@@ -349,11 +349,7 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
                 e["anchor"] = "top_split"
     rend = gfx.GfxRenderer(events, W, H, fps, colors, seed)
     rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and H > W
-    if cfg.at("gfx.hero_word", False):
-        rend.hero = {"font": str(cfg.at("gfx.hero_font", "AlfaSlabOne-400.ttf")),
-                     "color": gfx.hex_rgb(cfg.at("gfx.hero_color", "#E8302A")),
-                     "width": float(cfg.at("gfx.hero_width", 0.94))}
-    rend.fullpic = bool(cfg.at("gfx.fullpic_images", False))
+    style_renderer(cfg, rend)
     if not cfg.at("gfx.particles", True):
         rend.particles = _NoParticles()
     if cfg.at("gfx.track", True):
@@ -434,6 +430,17 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     wr.stdin.close(); wr.wait()
     return {"transitions": [{"t": round(c / fps, 3), "name": n} for c, n in zip(cuts, names)],
             "face_overlap_frames": overlap}
+
+
+def style_renderer(cfg, rend) -> None:
+    """Graphics style switches shared by the reel render and the Resolve pack."""
+    if cfg.at("gfx.hero_word", False):
+        rend.hero = {"font": str(cfg.at("gfx.hero_font", "AlfaSlabOne-400.ttf")),
+                     "color": gfx.hex_rgb(cfg.at("gfx.hero_color", "#E8302A")),
+                     "width": float(cfg.at("gfx.hero_width", 0.94))}
+    rend.fullpic = bool(cfg.at("gfx.fullpic_images", False))
+    rend.big_counters = bool(cfg.at("gfx.big_counters", True))
+    rend.close_up_face = float(cfg.at("gfx.close_up_face", 0.22))
 
 
 class _NoParticles:
@@ -652,6 +659,10 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
             if e["type"] == "text":
                 e["anim"], e["sfx_in"] = "pop", "pop"
                 e["sfx"] = gfx._sfx_for(e)
+    if cfg.at("gfx.cinematic", True):  # words settle in slowly and stay readable: no glitches, no snaps
+        for e in events:
+            if e["anim"] in ("glitch", "pop", "slide"):
+                e["anim"] = "zoom"
     lib_path = cfg.dir("cache") / "reactions.json"
     rplan = []
     if fmt != "landscape" and lib_path.exists() and (cfg.at("reactions.enabled", True)):

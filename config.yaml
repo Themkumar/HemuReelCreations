@@ -26,7 +26,7 @@ reel:
   height: 1920
   fps: 30
   min_sec: 30
-  max_sec: 60
+  max_sec: 90
   count_min: 10
   count_max: 10
   languages: [en]   # English captions only (the speech stays Telugu). Add te, hi, ta, kn to bring them back.
@@ -156,7 +156,8 @@ gfx:
   snap_to_onset: true       # land on the frame where the word's sound starts (needs `hrc realign`)
   track: true               # graphics stay pinned to the room: they follow the reframing pans and zooms
   particles: false          # floating dots behind the speaker (off for the clean reference look)
-  default_hold_sec: 2.2
+  default_hold_sec: 2.8       # v0.9: words stay up long enough to read (cinematic)
+  cinematic: true           # slow, soft landings (no glitch/snap animations)
   hero_word: true           # v0.8.2: text moments = ONE huge keyword across the picture, behind the speaker
   hero_font: AlfaSlabOne-400.ttf
   hero_color: "#E8302A"

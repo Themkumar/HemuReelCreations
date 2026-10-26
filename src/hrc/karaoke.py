@@ -78,7 +78,8 @@ def _title(w: str) -> str:
     return w if any(c.isupper() for c in w[1:]) or not w[:1].isalpha() else w[:1].upper() + w[1:]
 
 
-def build_ass_punch(subs: dict, cfg, width: int = 1080, height: int = 1920, duration: float | None = None) -> str:
+def build_ass_punch(subs: dict, cfg, width: int = 1080, height: int = 1920, duration: float | None = None,
+                    box=None, headline: str | None = None) -> str:
     """Reference-reel captions: a few small white words that appear as they are spoken, and the key
     word of the line big, in a glowing italic serif, right under them."""
     sc = dict(cfg.at("subtitles", {}))
@@ -89,6 +90,12 @@ def build_ass_punch(subs: dict, cfg, width: int = 1080, height: int = 1920, dura
     hero_col = ass_color(ps.get("hero_color", "#F4E73A"))
     glow_col = ass_color(ps.get("glow_color", "#E8D700"))
     y_lead = int(height * float(ps.get("y", 0.6)))
+    framed = box is not None and (box[2], box[3]) != (width, height)  # wide shot boxed in a 9:16 frame
+    lay = cfg.at("layout.reel", {}) or {}
+    if framed:  # captions in the dark area right under the picture: they never cover a face
+        y_lead = int(box[1] + box[3] + height * float(lay.get("caption_gap", 0.03)))
+    h_size = int(float(lay.get("headline_size", 96)) * k)
+    accent = (cfg.at("project.brand_colors") or ["#FFD400", "#FF3B5C"])[0]
     y_hero = y_lead + int(lead_size * 0.55)
     x = width // 2
     max_w = int(ps.get("max_words", 3))
@@ -105,6 +112,7 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Lead,{lead_font},{lead_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H78000000,0,0,0,0,100,100,0,0,1,0,{max(1, int(3 * k))},8,60,60,0,1
 Style: Hero,{hero_font},{hero_size},{hero_col},{hero_col},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,40,40,0,1
 Style: Glow,{hero_font},{hero_size},{glow_col},{glow_col},{glow_col},&H00000000,0,0,0,0,100,100,0,0,1,{max(2, int(10 * k))},0,8,40,40,0,1
+Style: Headline,Anton,{h_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,40,40,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -139,11 +147,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             a = max(t0, hero["start"] - lead)
             if a < t1:
                 word = _esc(_title(hero["w"].strip("'\"‘’“”,.;:")))
-                pop = "\\fscx118\\fscy118\\t(0,140,\\fscx100\\fscy100)"
+                pop = "\\fad(180,0)\\fscx108\\fscy108\\t(0,320,0.6,\\fscx100\\fscy100)"  # slow, cinematic settle
                 lines.append(f"Dialogue: 0,{ass_time(a)},{ass_time(t1)},Glow,,0,0,0,,"
                              f"{{\\an8\\pos({x},{y_hero})\\blur{int(14 * k)}\\alpha&H70&\\1a&HFF&{pop}}}{word}")
                 lines.append(f"Dialogue: 1,{ass_time(a)},{ass_time(t1)},Hero,,0,0,0,,"
                              f"{{\\an8\\pos({x},{y_hero})\\blur0.6{pop}}}{word}")
+    if framed and headline:  # the reel's title above the picture, key words in the brand yellow
+        end = duration or max((c["end"] for c in subs["chunks"]), default=60.0) + 1
+        ht = _headline_text(headline, True, accent, int(lay.get("headline_chars", 22)))
+        hy = int(box[1] - height * float(lay.get("headline_gap", 0.025)))
+        lines.insert(0, f"Dialogue: 3,{ass_time(0)},{ass_time(end)},Headline,,0,0,0,,{{\\an2\\pos({width // 2},{hy})}}{ht}")
     return head + "\n".join(lines) + "\n"
 
 
@@ -164,6 +177,28 @@ def ref_beats(words: list[dict]) -> list[tuple[list[dict], dict]]:
         out.append((buf, w)); buf = []
     if buf:
         out.append((buf[:-1], buf[-1]))
+    return out
+
+
+def merge_quick_beats(beats_: list, min_sec: float = 0.65, max_chars: int = 13) -> list:
+    """Words spoken fast would flash by one per beat. A beat shorter than min_sec takes the next
+    beat's big word with it ("RIGHT THEN"), so every caption stays up long enough to read."""
+    out = []
+    i = 0
+    while i < len(beats_):
+        small, big = beats_[i]
+        while i + 1 < len(beats_):
+            n_small, n_big = beats_[i + 1]
+            span = n_big["start"] - (small[0] if small else big)["start"] if not n_small else \
+                n_small[0]["start"] - (small[0] if small else big)["start"]
+            text = (big["w"] + " " + " ".join(x["w"] for x in n_small) + " " + n_big["w"]).split()
+            if span >= min_sec or big.get("hero") or n_big.get("hero") or big["w"][-1:] in ".!?" \
+                    or len(" ".join(text)) > max_chars:
+                break
+            big = {**big, "w": " ".join(text), "end": n_big["end"]}
+            i += 1
+        out.append((small, big))
+        i += 1
     return out
 
 
@@ -211,6 +246,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     beats_ = []
     for ch in sorted(subs["chunks"], key=lambda c: c["start"]):
         beats_ += ref_beats([w for w in ch["words"] if w["w"].strip()])
+    beats_ = merge_quick_beats(beats_, float(ps.get("min_beat_sec", 0.65)), int(ps.get("merge_chars", 13)))
     lines, ci = [], 0
     y_big = y0 + int(small_size * 1.15)
     for bi, (small, big) in enumerate(beats_):
@@ -245,7 +281,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             lines.append(f"Dialogue: 1,{ass_time(a)},{ass_time(e)},{'SmallAlt' if alt else 'Small'},,0,0,0,,"
                          f"{{\\an8\\pos({x},{y0})}}{_esc(st)}")
         if tb < t1:
-            pop = f"\\fscx{int(fit * 1.18)}\\fscy{int(fit * 1.18)}\\t(0,130,\\fscx{fit}\\fscy{fit})"
+            # cinematic landing: a soft fade with a slow settle, not a snap
+            pop = (f"\\fad(180,0)\\fscx{int(fit * 1.06)}\\fscy{int(fit * 1.06)}"
+                   f"\\t(0,320,0.6,\\fscx{fit}\\fscy{fit})")
             lines.append(f"Dialogue: 2,{ass_time(tb)},{ass_time(t1)},Big,,0,0,0,,"
                          f"{{\\an8\\pos({x},{y_big})\\c{ass_color(col)}{pop}}}{_esc(word)}")
     if framed and headline:
@@ -262,7 +300,7 @@ def build_ass(subs: dict, cfg, width: int = 1080, height: int = 1920, box=None, 
     if sc.get("style") == "punch" and subs.get("lang") == "en":
         if (sc.get("punch") or {}).get("ref_style"):
             return build_ass_ref(subs, cfg, width, height, box, headline, duration)
-        return build_ass_punch(subs, cfg, width, height, duration)
+        return build_ass_punch(subs, cfg, width, height, duration, box, headline)
     framed = box is not None and (box[2], box[3]) != (width, height)  # reel: video box inside a 9:16 frame
     if width > height:  # landscape: lower on screen, no right-edge UI to avoid
         sc.update(sc.get("landscape", {"y_position": 0.84, "bottom_safe": 0.05, "right_safe": 0.0}))
