@@ -29,12 +29,13 @@ reel:
   max_sec: 60
   count_min: 10
   count_max: 10
-  languages: [te, hi, en, ta, kn]
-  formats: [reel]   # reel = 9:16 frame with the landscape video as a wide box (headline above, captions below)
+  languages: [en]   # English captions only (the speech stays Telugu). Add te, hi, ta, kn to bring them back.
+  formats: [reel]   # reel = 9:16 (full-screen close-up with layout.reel.fullbleed, else a wide box with a headline)
                     # also possible: landscape (plain 16:9 1920x1080), portrait (face-tracked 9:16 crop)
 
 layout:
   reel:
+    fullbleed: true         # v0.8: the speaker's close-up fills the 9:16 frame, like the reference reels
     video_aspect: 1.4       # width / height of the video box (16:9 source is cropped a little, steady tracking)
     video_top: 0.25         # top of the video box, as a fraction of the frame height
     headline_size: 124      # headline above the video (Anton for English, Noto Bold for Indic scripts)
@@ -63,6 +64,17 @@ translate:
   chunk_words: [3, 6]
 
 subtitles:
+  style: punch               # punch = reference-reel captions: small white words + the key word big in a
+                             # glowing italic serif (mark it *like this* in the English text). classic = karaoke lines
+  punch:
+    lead_font: Inter SemiBold
+    lead_size: 58            # small words, at 1080 wide
+    hero_font: Playfair Hero # Playfair Display Bold Italic
+    hero_size: 168
+    hero_color: "#F4E73A"
+    glow_color: "#E8D700"
+    y: 0.6                   # small words' top, as a fraction of the height (chest level, under the face)
+    max_words: 3             # words on screen at once (besides the key word)
   max_lines: 2               # line 2 appears under line 1 only when a sentence needs it
   max_chars: {te: 15, kn: 15, ta: 14, hi: 19, en: 21}   # longest line per language
   font_size: 100            # at 1080 wide (portrait)
@@ -81,7 +93,27 @@ subtitles:
     hi: Noto Sans Devanagari
     ta: Noto Sans Tamil
     kn: Noto Sans Kannada
-    en: Noto Sans
+    en: Inter SemiBold
+
+grade:                      # cinematic look on the podcast picture (darker room, deeper shadows, warm skin)
+  enabled: true
+  exposure: -0.18           # stops
+  contrast: 1.15
+  gamma: 1.1                # >1 deepens shadows
+  saturation: 0.9
+  warmth: 0.03
+  vignette: 0.5             # darker edges (0.35 before v0.8)
+
+reactions:                  # listener cutaways while the speaker talks (run `hrc reactions` once first)
+  enabled: true
+  length_sec: 1.5           # each one 1-2 s; never more than 2 s
+  min_sec: 1.0
+  max_sec: 2.0
+  every_sec: 16             # about one every 16 s
+  max_per_reel: 3
+  first_after_sec: 6        # never in the opening hook
+  head_room: 0.32
+  push_in: 0.035            # slow push-in on the listener
 
 reframe:
   smoothing_min_cutoff: 0.15  # One-Euro filter, lower = smoother
@@ -92,7 +124,7 @@ reframe:
   punch_in_scale: 1.12      # zoom for emphasis words
   punch_in_frames: 6
   min_shot_sec: 0.4         # a camera angle shown for less than this is removed (no flash cuts)
-  portrait_top_band: 0.18    # portrait: video sits lower, top 18% is a soft band for graphics above the head
+  portrait_top_band: 0.0     # portrait: 0 = full-bleed close-up; 0.18 = video sits lower with a soft band above the head
 
 matte:
   engine: auto              # auto | vision | rvm | mediapipe | none  (auto = Apple Vision on a Mac)
@@ -105,10 +137,17 @@ matte:
   depth_objects: true       # also keep everything as near as you below your eye line (mic arm, mug, tabletop), found by depth
   depth_tolerance: -0.03    # negative = must be nearer than you (keeps your chair out); higher keeps more
   object_region_top: 0.15   # ignore things above this share of your height from the top of your head
+  only_where_needed: true   # v0.8: cut out only the frames where a graphic sits behind you (+ handles)
+  handle_sec: 0.3
+  edge_refine_model: true   # high-detail edges (hair, fingers, mic arm) with BiRefNet on those frames
+  edge_model: ZhengPeng7/BiRefNet-matting   # faster: ZhengPeng7/BiRefNet_lite
 
 gfx:
   max_major_at_once: 1
   lead_frames: 1            # appear this many frames before the word
+  snap_to_onset: true       # land on the frame where the word's sound starts (needs `hrc realign`)
+  track: true               # graphics stay pinned to the room: they follow the reframing pans and zooms
+  particles: false          # floating dots behind the speaker (off for the clean reference look)
   default_hold_sec: 2.2
   backdrop:                 # look of photos that replace the wall behind you
     blur: 0                 # 0 = crisp photo; 3-8 = soft, dreamy background
@@ -139,9 +178,10 @@ export:
   bitrate: 12M
   audio_bitrate: 320k
   clean_version: true
+  phone_preview: true       # also a small <reel>_en_phone.mp4 (about 3 MB) to watch on a phone
   fcpxml: true
   resolve_pack: true        # layered pack for DaVinci Resolve: every graphic, caption, logo and sound on its own track
-  resolve_langs: [te]
+  resolve_langs: [en]
 
 resolve:
   graphic_font: Anton       # font of the editable graphic text in Resolve (tracks V11 and up)

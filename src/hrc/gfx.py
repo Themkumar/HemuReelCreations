@@ -232,27 +232,56 @@ class Particles:
 
 
 # ---------- timeline ----------
+def _norm(w: str) -> str:
+    return w.strip(".,!?;:'\"()…-–—").lower()
+
+
 def find_phrase(words: list[dict], phrase: str, after: float = -1.0) -> dict | None:
-    """First word whose text starts the phrase (or contains it), at or after `after`."""
-    target = phrase.split()
+    """The word(s) a graphic belongs to, at or after `after`.
+
+    Best match wins (then the earliest): every word equal > first word equal > first word
+    starting with most of the phrase's first word. A short prefix alone (two letters) never counts,
+    so "ఒకటి" (one) cannot land on "ఒక" (a)."""
+    target = [_norm(t) for t in phrase.split() if _norm(t)]
     if not target:
         return None
+    best, best_score = None, 0.0
     for i, w in enumerate(words):
         if w["start"] < after:
             continue
-        seq = " ".join(x["word"] for x in words[i:i + len(target)])
-        if seq.startswith(target[0][: max(2, len(target[0]) - 2)]) and (len(target) == 1 or target[-1][:2] in seq):
-            return {"start": w["start"], "end": words[min(len(words) - 1, i + len(target) - 1)]["end"]}
-    joined = phrase.replace(" ", "")
-    for w in words:
-        if w["start"] >= after and (joined in w["word"] or w["word"] in joined) and len(w["word"]) > 2:
-            return {"start": w["start"], "end": w["end"]}
-    return None
+        seq = [_norm(x["word"]) for x in words[i:i + len(target)]]
+        if not seq:
+            continue
+        t0, s0 = target[0], seq[0]
+        if seq == target:
+            score = 3.0
+        elif s0 == t0:
+            score = 2.5 if len(target) == 1 or all(any(t[:3] in x for x in seq) for t in target[1:]) else 2.2
+        elif (s0.startswith(t0) or t0.startswith(s0)) and min(len(s0), len(t0)) >= max(3, 0.75 * len(t0)):
+            score = 2.0
+        elif len(t0) >= 4 and (t0 in s0):
+            score = 1.5
+        else:
+            continue
+        if score > best_score:
+            j = min(len(words) - 1, i + len(target) - 1)
+            best, best_score = {"start": w["start"], "end": words[j]["end"], "src": w.get("src_start")}, score
+            if score >= 3.0:
+                break
+    if best is None:
+        joined = phrase.replace(" ", "")
+        for w in words:
+            if w["start"] >= after and len(w["word"]) > 2 and (joined in w["word"] or w["word"] in joined):
+                return {"start": w["start"], "end": w["end"], "src": w.get("src_start")}
+    return best
 
 
 def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, duration: float,
-                   lead_frames: int = 1, hold: float = 2.2, seed: int = 0) -> list[dict]:
-    """Turn visual moments into timed GFX events (one major element at a time)."""
+                   lead_frames: int = 1, hold: float = 2.2, seed: int = 0, onsets=None) -> list[dict]:
+    """Turn visual moments into timed GFX events (one major element at a time).
+
+    With `onsets` (speech-onset strength per 10 ms of the source audio), each graphic lands on the
+    frame where its word's sound actually starts, not just where the aligner put the word."""
     rng = random.Random(seed)
     events, last_anim, after = [], None, -1.0
     assets = manifest.get(reel["id"], {})
@@ -265,7 +294,14 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
             log.warn("%s: visual moment %d (%r, label %r) skipped: phrase is not inside the reel's segments.",
                         reel.get("id", "?"), k, vm.get("phrase"), vm.get("label"))
             continue
-        t_in = max(0.0, hit["start"] - lead_frames / fps)
+        land = hit["start"]
+        if onsets is not None and hit.get("src") is not None:
+            from .realign import nearest_onset
+            land = hit["start"] + (nearest_onset(hit["src"], onsets) - hit["src"])
+        if vm.get("nudge"):  # manual fix in the plan, in frames (+ later, - earlier)
+            land += float(vm["nudge"]) / fps
+        land = round(land * fps) / fps  # on a frame boundary
+        t_in = max(0.0, land - lead_frames / fps)
         kind = vm.get("type", "text")
         asset = assets.get(str(k), {}) if isinstance(assets, dict) else {}
         if kind in ("image", "broll") and not asset.get("file"):
@@ -281,9 +317,19 @@ def build_timeline(reel: dict, words: list[dict], manifest: dict, fps: int, dura
             "text": vm.get("label") or vm["phrase"], "value": vm.get("value"),
             "file": asset.get("file"), "label": vm.get("label") if kind in ("image", "broll") else None, "sfx_in": SFX_FOR_ANIM[anim], "major": True,
             "style": vm.get("style", "auto"), "original": asset.get("original"),
+            "land": round(land, 3), "track": vm.get("track", "auto"),
         })
         events[-1]["sfx"] = _sfx_for(events[-1])
     events.sort(key=lambda e: e["t_in"])
+    kept = []
+    for e in events:  # a graphic landing within 0.8 s of the last one would crowd it: drop it
+        if kept and e["t_in"] - kept[-1]["t_in"] < 0.8:
+            from . import log
+            log.warn("%s: graphic %r dropped: it lands %.2fs after %r.", reel.get("id", "?"), e["text"],
+                     e["t_in"] - kept[-1]["t_in"], kept[-1]["text"])
+            continue
+        kept.append(e)
+    events = kept
     for a, b in zip(events, events[1:]):  # no overlap between major elements
         if a["t_out"] > b["t_in"] - 0.12:
             a["t_out"] = round(max(a["t_in"] + 0.6, b["t_in"] - 0.12), 3)
@@ -359,6 +405,33 @@ class GfxRenderer:
         self.rng = np.random.default_rng(seed)
         self.shake_px = 3.0 * min(W, H) / 1080
         self.backdrop_mode = "all"  # "skip": no photo backgrounds; "only": photo backgrounds alone (Resolve layers)
+        self.cams: list[dict] | None = None  # per-frame head + camera crop [x, y, scale]: pins graphics to the room
+        self.switches: list[int] = []  # frames where the picture changes shot (tracking re-anchors there)
+        self.fullbleed = False  # portrait close-up filling the frame: big words sit behind the head
+
+    # ---- tracking -----------------------------------------------------------------------------
+    def _tracked(self, ev: dict) -> bool:
+        return self.cams is not None and ev.get("track", "auto") not in (False, "off", "none")
+
+    def _ref_frame(self, ev: dict, i: int) -> int:
+        f_in = int(round(ev["t_in"] * self.fps))
+        later = [s for s in self.switches if f_in < s <= i]
+        return min(max(later) if later else f_in, len(self.cams) - 1)
+
+    def track(self, ev: dict, t: float) -> tuple[dict, float, float, float] | None:
+        """For a pinned graphic: the head it was laid out against, and (k, ox, oy) that moves a point
+        drawn on that reference frame to where the same spot of the room is now
+        (follows the reframing pans and punch-in zooms exactly, like a tracked graphic)."""
+        if not self._tracked(ev):
+            return None
+        i = min(int(round(t * self.fps)), len(self.cams) - 1)
+        r = self._ref_frame(ev, i)
+        hr, hi = self.cams[r], self.cams[i]
+        if "cam" not in hr or "cam" not in hi:
+            return None
+        (xr, yr, sr), (xi, yi, si) = hr["cam"], hi["cam"]
+        k = si / sr
+        return hr, k, (xr - xi) * si, (yr - yi) * si
 
     def _sprite(self, ev: dict, head: dict) -> np.ndarray:
         if ev["id"] in self.sprites:
@@ -445,9 +518,14 @@ class GfxRenderer:
                 lay["mode"] = "band"
                 if t == "text":
                     # bottom ~25% of the letters tucks behind the hair: the "text behind the person" look
-                    spr = fit_text(ev["text"].replace("*", ""), int(W * 0.94), band * 1.33, int(U * 0.3), int(U * 0.1),
-                                   fill=self.c1, glow=self.c2)
-                    lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2)
+                    if self.fullbleed:  # close-up: one giant word, its lower third hidden behind the head
+                        spr = fit_text(ev["text"].replace("*", ""), int(W * 0.96), band * 1.75, int(U * 0.36),
+                                       int(U * 0.12), fill=self.c1, glow=self.c2)
+                        lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2 + band * 0.12)
+                    else:
+                        spr = fit_text(ev["text"].replace("*", ""), int(W * 0.94), band * 1.33, int(U * 0.3), int(U * 0.1),
+                                       fill=self.c1, glow=self.c2)
+                        lay.update(spr=spr, cx=W / 2, cy=top + spr.shape[0] / 2)
                 elif t in ("image", "broll") and ev.get("file"):
                     ih = band * 1.15
                     img = trim(image_sprite(Path(ev["file"]), int(W * 0.42), int(ih)))
@@ -529,8 +607,11 @@ class GfxRenderer:
         self.front_ops: list[tuple] = []
         any_active = bool(self.active(t))
         self.particles.draw(layer, 0.6 if any_active else 0.25)
-        hx, hy, hs = head["x"], head["y"], max(head["size"], self.U * 0.12)
         for ev in self.active(t):
+            tr = self.track(ev, t)
+            hd = tr[0] if tr else head
+            k_t, ox, oy = (tr[1], tr[2], tr[3]) if tr else (1.0, 0.0, 0.0)
+            hx, hy, hs = hd["x"], hd["y"], max(hd["size"], self.U * 0.12)
             local = t - ev["t_in"]
             out_left = ev["t_out"] - t
             p_in = clamp01(local / 0.28)
@@ -552,7 +633,7 @@ class GfxRenderer:
             elif anim == "glitch":
                 alpha *= 1.0 if local > 0.2 or self.rng.random() > 0.3 else 0.25
             scale *= 0.97 + 0.03 * p_out
-            lay = self._layout(ev, head)
+            lay = self._layout(ev, hd)
             spr = lay["spr"]
             if anim == "typewriter" and lay.get("lines"):
                 spr = self._typed(ev, lay, local)
@@ -584,12 +665,12 @@ class GfxRenderer:
                 cx, cy = lay["cx"], lay["cy"] + bob
                 num_cy = lay.get("num_cy", 0) + bob
                 if ev["anchor"] == "behind_head":
-                    glow_aura(layer, hx, hy, hs * 2.6, self.c2, 0.3 * alpha)
+                    glow_aura(layer, hx * k_t + ox, hy * k_t + oy, hs * 2.6 * k_t, self.c2, 0.3 * alpha)
             else:
                 bob = math.sin(local * 2.4) * self.U * 0.008
                 above = max(sh / 2 + self.H * 0.04, hy - hs * 0.75 - sh * 0.25)
                 if ev["anchor"] == "behind_head":
-                    glow_aura(layer, hx, hy, hs * 2.6, self.c2, 0.35 * alpha)
+                    glow_aura(layer, hx * k_t + ox, hy * k_t + oy, hs * 2.6 * k_t, self.c2, 0.35 * alpha)
                     if self.landscape:  # sit on top of the head, only the bottom of the letters tucked behind
                         cx, cy = self.W / 2, hy - hs * 0.62 - sh * 0.38 + bob
                     else:
@@ -615,6 +696,11 @@ class GfxRenderer:
                 cx = min(max(cx, sw / 2 + self.W * 0.02), self.W - sw / 2 - self.W * 0.02)
                 num_cy = cy - sh / 2 - extra_top / 2
             cx, cy = cx + dx, cy + dy
+            if tr:  # pinned to the room: follow the camera's pan and zoom
+                cx, cy, scale = cx * k_t + ox, cy * k_t + oy, scale * k_t
+                if num_cy is not None:
+                    num_cy = num_cy * k_t + oy
+                sh, sw = sh * k_t, sw * k_t
             front = bool(lay.get("front"))
             put = (lambda *a: self.front_ops.append(a)) if front else (lambda *a: blend(layer, *a))
             put(spr, cx, cy, scale, alpha)

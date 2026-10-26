@@ -138,6 +138,73 @@ class _Depth:
         return cv2.resize(self.last, size, interpolation=cv2.INTER_LINEAR)
 
 
+class _Refiner:
+    """High-detail edges (hair, fingers, the mic's thin arm) from BiRefNet, used only in a band
+    around the coarse cut-out: inside the band's core the matte stays solid, outside it stays empty,
+    so the model can sharpen edges but never add a wall or drop an arm."""
+
+    def __init__(self, model_name: str = "ZhengPeng7/BiRefNet-matting", size: int = 1024):
+        self.model, self.size = None, size
+        try:
+            import torch
+            from transformers import AutoModelForImageSegmentation
+
+            self.dev = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+            self.model = AutoModelForImageSegmentation.from_pretrained(model_name, trust_remote_code=True)
+            self.model.to(self.dev).eval()
+            self.torch = torch
+            log.info("Edge refinement model loaded (%s on %s).", model_name.split("/")[-1], self.dev)
+        except Exception as exc:
+            log.warn("No edge refinement model (%s). Using the guided filter only.", str(exc)[:120])
+
+    def __call__(self, rgb: np.ndarray, coarse: np.ndarray, band_px: int = 18) -> np.ndarray:
+        if self.model is None:
+            return coarse
+        import cv2
+
+        H, W = coarse.shape
+        hard = (coarse > 0.5).astype(np.uint8)
+        if hard.sum() < 50:
+            return coarse
+        k = np.ones((band_px * 2 + 1, band_px * 2 + 1), np.uint8)
+        outer = cv2.dilate(hard, k)
+        core = cv2.erode(hard, k)
+        ys, xs = np.nonzero(outer)
+        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        side = max(y1 - y0, x1 - x0)  # square crop around the subject: the model sees it big
+        cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
+        y0, x0 = max(0, cy - side // 2), max(0, cx - side // 2)
+        y1, x1 = min(H, y0 + side), min(W, x0 + side)
+        crop = rgb[y0:y1, x0:x1]
+        x = cv2.resize(crop, (self.size, self.size), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+        x = (x - np.array([0.485, 0.456, 0.406], np.float32)) / np.array([0.229, 0.224, 0.225], np.float32)
+        t = self.torch.from_numpy(x.transpose(2, 0, 1)[None]).to(self.dev)
+        with self.torch.no_grad():
+            pred = self.model(t)
+            pred = (pred[-1] if isinstance(pred, (list, tuple)) else pred).sigmoid()[0, 0].float().cpu().numpy()
+        fine = np.zeros((H, W), np.float32)
+        fine[y0:y1, x0:x1] = cv2.resize(pred, (x1 - x0, y1 - y0), interpolation=cv2.INTER_CUBIC)
+        out = np.where(core > 0, 1.0, np.where(outer > 0, np.clip(fine, 0, 1), 0.0)).astype(np.float32)
+        # where the model saw nothing but the coarse matte is sure (e.g. a mug the model treats as
+        # background), keep the coarse value: refinement must never remove a whole object
+        out = np.maximum(out, np.where(coarse > 0.9, cv2.erode(coarse, np.ones((5, 5), np.uint8)), 0))
+        return out
+
+
+def frame_ranges(times: list[tuple[float, float]], fps: float, n: int, handle: float = 0.3) -> list[tuple[int, int]]:
+    """Frame ranges [a, b) that need a cut-out: each (t_in, t_out) plus `handle` seconds each side, merged."""
+    rs = sorted((max(0, int((a - handle) * fps)), min(n, int(np.ceil((b + handle) * fps)))) for a, b in times)
+    out: list[list[int]] = []
+    for a, b in rs:
+        if b <= a:
+            continue
+        if out and a <= out[-1][1] + 2:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return [(a, b) for a, b in out]
+
+
 def select_objects(person: np.ndarray, labels: np.ndarray, depth: np.ndarray | None,
                    max_area: float = 0.22, tol: float = 0.06) -> list[int]:
     """Which of Vision's foreground objects sit in front of (or level with) the speaker."""
@@ -207,9 +274,19 @@ def depth_objects(person: np.ndarray, depth: np.ndarray | None, grey: np.ndarray
 
 def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smooth: float = 0.6,
                objects: bool = True, refine: bool = True, max_area: float = 0.22, depth_model: bool = True,
-               use_depth_objects: bool = True, depth_tol: float = -0.03, region_top: float = 0.15) -> dict:
+               use_depth_objects: bool = True, depth_tol: float = -0.03, region_top: float = 0.15,
+               ranges: list[tuple[int, int]] | None = None, refiner: str | None = None,
+               n_frames: int | None = None) -> dict:
+    """`ranges`: only these frame ranges get a cut-out (the rest of the matte is empty), so the slow,
+    detailed work is spent where a graphic actually sits behind the speaker."""
     info = video_info(plate)
     W, H, fps = info["width"], info["height"], info["fps"]
+    n_total = int(n_frames or round(info["duration"] * fps))
+    need = None
+    if ranges is not None:
+        need = np.zeros(n_total + 8, bool)
+        for a, b in ranges:
+            need[a:b] = True
     engine = pick_engine(engine)
     if engine == "none":
         log.warn("No matting model installed (torch or mediapipe). GFX will be drawn without the person cut-out, "
@@ -233,22 +310,27 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
         import threading
 
         frames_q: deque = deque()
+        zero = np.zeros((H, W), np.uint8).tobytes()
+        written = [0]
 
         def feed():
             try:
-                for fr in _frames(plate, W, H):
-                    frames_q.append(fr)
+                for gi, fr in enumerate(_frames(plate, W, H)):
+                    if need is not None and (gi >= len(need) or not need[gi]):
+                        continue
+                    frames_q.append((gi, fr))
                     proc.stdin.write(fr.tobytes())
             finally:
                 proc.stdin.close()
 
         th = threading.Thread(target=feed, daemon=True); th.start()
         depth = _Depth(every=2) if objects and depth_model else None
-        win: deque = deque()  # (person alpha, object alpha, grey) for the 5-frame object median
+        ref = _Refiner(refiner) if refiner else None
+        win: deque = deque()  # (person alpha, object alpha, grey, frame no., rgb) for the 5-frame object median
         next_emit, base = 0, [0]  # next frame to write; frame number of win[0]
-        stats = {"frames": 0, "object_frames": 0, "object_px": 0.0}
+        stats = {"frames": 0, "object_frames": 0, "object_px": 0.0, "refined": 0}
 
-        def emit(person, obj_stack, grey):
+        def emit(person, obj_stack, grey, gi=None, rgb=None):
             a = person
             if obj_stack and any(x.max() > 0 for x in obj_stack):
                 o = np.median(np.stack(obj_stack), axis=0) if len(obj_stack) > 2 else obj_stack[len(obj_stack) // 2]
@@ -256,10 +338,18 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
                 if o.max() > 0.5:
                     stats["object_frames"] += 1
                     stats["object_px"] += float((o > 0.5).mean())
-            if refine:
+            if ref is not None and ref.model is not None and rgb is not None:
+                a = ref(rgb, a.astype(np.float32))
+                a = guided_filter(grey, a, r=2, eps=1e-4)  # light snap to the picture, keeps fine hair
+                stats["refined"] += 1
+            elif refine:
                 a = guided_filter(grey, a.astype(np.float32), r=6, eps=2e-3)
                 a = np.clip((a - 0.04) / 0.92, 0, 1)
+            if gi is not None:
+                while written[0] < gi:  # frames with no graphic behind the speaker: no cut-out
+                    w.stdin.write(zero); written[0] += 1
             w.stdin.write((a * 255).astype(np.uint8).tobytes())
+            written[0] += 1
             stats["frames"] += 1
 
         while True:
@@ -269,7 +359,15 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
             om = lb = None
             if objects:
                 om, lb = _read_block(proc.stdout), _read_block(proc.stdout)
-            fr = frames_q.popleft() if frames_q else None
+            gi, fr = frames_q.popleft() if frames_q else (None, None)
+            if need is not None and win and gi is not None and gi - win[-1][3] > 1:
+                # a new range starts: flush the old one and forget its history
+                while next_emit - base[0] < len(win):
+                    k = next_emit - base[0]
+                    emit(win[k][0], [x[1] for x in list(win)[max(0, k - 2):k + 3]] if objects else [], win[k][2],
+                         win[k][3], win[k][4])
+                    next_emit += 1
+                win.clear(); base[0] = next_emit; prev = None
             if pm.size == 0:
                 a = prev if prev is not None else np.zeros((H, W), np.float32)
             else:
@@ -292,23 +390,29 @@ def make_matte(plate: Path, out: Path, engine: str, downsample: float = 0.4, smo
                     obj = np.clip(soft * sel, 0, 1)
             if objects and use_depth_objects and dfull is not None:
                 obj = np.maximum(obj, depth_objects(a, dfull, grey, depth_tol, region_top))
-            win.append((a, obj, grey))
+            win.append((a, obj, grey, gi if gi is not None else next_emit + len(win), fr))
             while len(win) - (next_emit - base[0]) > 2:
                 k = next_emit - base[0]
-                emit(win[k][0], [x[1] for x in list(win)[max(0, k - 2):k + 3]] if objects else [], win[k][2])
+                emit(win[k][0], [x[1] for x in list(win)[max(0, k - 2):k + 3]] if objects else [], win[k][2],
+                     win[k][3], win[k][4])
                 next_emit += 1
                 while next_emit - base[0] > 2:  # keep two frames of history for the median
                     win.popleft(); base[0] += 1
         while next_emit - base[0] < len(win):  # the last frames (shorter window at the end)
             k = next_emit - base[0]
-            emit(win[k][0], [x[1] for x in list(win)[max(0, k - 2):k + 3]] if objects else [], win[k][2])
+            emit(win[k][0], [x[1] for x in list(win)[max(0, k - 2):k + 3]] if objects else [], win[k][2],
+                 win[k][3], win[k][4])
             next_emit += 1
         th.join(); proc.wait()
+        if need is not None:
+            while written[0] < n_total:
+                w.stdin.write(zero); written[0] += 1
         mres_extra = {"objects": bool(objects), "object_frames": stats["object_frames"],
                       "object_share": round(stats["object_px"] / max(1, stats["object_frames"]), 4),
                       "depth": bool(depth is not None and depth.pipe is not None), "refined": bool(refine),
                       "depth_objects": bool(objects and use_depth_objects and depth is not None and depth.pipe is not None),
-                      "depth_tolerance": depth_tol}
+                      "depth_tolerance": depth_tol, "matted_frames": stats["frames"],
+                      "edge_refined_frames": stats["refined"], "ranges": [list(r) for r in (ranges or [])]}
     elif engine == "rvm":
         import torch
 

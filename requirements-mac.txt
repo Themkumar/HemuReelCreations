@@ -7,3 +7,6 @@ mlx-whisper>=0.4      # fast Whisper word timestamps on Apple Silicon (fallback)
 mediapipe>=0.10.9,<0.10.15   # face detection + selfie matte fallback (keeps the legacy solutions API)
 rembg>=2.0.50         # background removal for image cut-outs
 onnxruntime>=1.17
+timm
+kornia
+einops

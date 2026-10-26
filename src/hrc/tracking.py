@@ -56,6 +56,11 @@ def _detector():
 
         return "mediapipe", mp_detect
     except Exception:
+        pass
+    tasks = _mp_tasks_detector()
+    if tasks is not None:
+        return "mediapipe-tasks", tasks
+    if True:
         import cv2
 
         if not hasattr(cv2, "CascadeClassifier"):
@@ -71,6 +76,38 @@ def _detector():
                     for (x, y, rw, rh) in rects]
 
         return "opencv-haar", cv_detect
+
+
+MP_FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
+
+
+def _mp_tasks_detector():
+    """Newer MediaPipe (no `solutions`): the Tasks face detector, model downloaded once."""
+    try:
+        import urllib.request
+
+        import mediapipe as mp  # type: ignore
+        from mediapipe.tasks.python import BaseOptions, vision  # type: ignore
+
+        model = Path.home() / ".cache" / "hrc" / "blaze_face_short_range.tflite"
+        if not model.exists():
+            model.parent.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(MP_FACE_MODEL, model)
+        det = vision.FaceDetector.create_from_options(vision.FaceDetectorOptions(
+            base_options=BaseOptions(model_asset_path=str(model)), min_detection_confidence=0.5))
+
+        def detect(rgb):
+            h, w = rgb.shape[:2]
+            res = det.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(rgb)))
+            out = []
+            for d in res.detections or []:
+                b = d.bounding_box
+                out.append({"cx": (b.origin_x + b.width / 2) / w, "cy": (b.origin_y + b.height / 2) / h,
+                            "w": b.width / w, "h": b.height / h, "score": float(d.categories[0].score)})
+            return out
+        return detect
+    except Exception:
+        return None
 
 
 def detect_faces(video: Path, sample_fps: float = 5, start: float = 0.0, end: float | None = None) -> dict:
@@ -177,7 +214,7 @@ def crop_path(faces: dict, shots: list[dict], t0: float, t1: float, fps: float, 
             cam_x = shot_target(t, te_)
             panel = split_panel(t, te_, cam_x)
             if panel:  # crop inside the speaker's half only; face a bit off-centre, room for graphics
-                cw = (panel[1] - panel[0]) * 0.8
+                cw = min((panel[1] - panel[0]) * 0.8, src_h * aspect)
                 lo_x, hi_x = panel[0], panel[1] - cw
                 mid = (panel[0] + panel[1]) / 2
                 bias = cw * 0.12 * (1 if cam_x >= mid else -1)

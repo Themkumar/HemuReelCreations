@@ -102,6 +102,57 @@ def timed_words(text: str, start: float, end: float) -> list[dict]:
     return out
 
 
+def timed_over(text: str, spans: list[tuple[float, float]]) -> list[dict]:
+    """Spread a translation's words over the time the speaker actually talks in this chunk (the
+    Telugu words' own spans, pauses skipped), by spoken length. *word* marks the hero word."""
+    ws = text.split()
+    spans = [(a, b) for a, b in spans if b > a]
+    if not ws or not spans:
+        return []
+    total_t = sum(b - a for a, b in spans)
+    weights = [align.weight(w.strip("*")) for w in ws]
+    tw = sum(weights)
+
+    def at(x):  # x seconds of speech in -> clock time
+        for a, b in spans:
+            if x <= b - a + 1e-9:
+                return a + x
+            x -= b - a
+        return spans[-1][1]
+
+    out, acc = [], 0.0
+    for w, k in zip(ws, weights):
+        d = total_t * k / tw
+        core = w.strip(",.!?;:'\"()…")
+        hero = len(core) > 2 and core.startswith("*") and core.endswith("*")
+        clean = w.replace("*", "")
+        a = at(acc + 1e-6)
+        acc += d
+        b = at(acc - 1e-6) if acc < total_t else spans[-1][1]
+        # a word that would straddle a pause ends at the pause; the next word starts after it
+        out.append({"w": clean, "start": round(a, 3), "end": round(max(b, a + 0.05), 3), "emph": hero, "hero": hero})
+    return out
+
+
+def retime_chunks(chunks: list[dict], rw: list[dict]) -> int:
+    """After a timing pass changes word times, move each chunk's start/end to its own words again.
+    Chunks were cut from the reel's words in order, so they map back one to one."""
+    if sum(len(c["te"].split()) for c in chunks) != len(rw):
+        return 0
+    i = moved = 0
+    for c in chunks:
+        n = len(c["te"].split())
+        ws = rw[i:i + n]
+        i += n
+        if not ws or " ".join(w["word"] for w in ws) != c["te"]:
+            continue
+        s, e = ws[0]["start"], ws[-1]["end"]
+        if abs(s - c["start"]) > 1e-3 or abs(e - c["end"]) > 1e-3:
+            c["start"], c["end"] = s, e
+            moved += 1
+    return moved
+
+
 def split_lines(chunk: dict, max_chars: int, max_lines: int = 2) -> list[dict]:
     """Break a timed chunk into caption screens. Each screen has up to `max_lines` lines of at most
     `max_chars`; every word gets a "line" index so line 2 always sits under line 1."""
@@ -137,6 +188,7 @@ def build(cfg, only: str | None = None) -> None:
         emph = set(reel.get("emphasis_words", [])) | {vm["phrase"] for vm in reel.get("visual_moments", [])}
         data = read_json(tdir / f"{reel['id']}.json")
         rw = planlib.reel_words(reel, words)
+        retime_chunks(data["chunks"], rw)
         missing = []
         for lang in cfg.at("reel.languages"):
             chunks = []
@@ -150,11 +202,16 @@ def build(cfg, only: str | None = None) -> None:
                     if not text:
                         missing.append(f"{lang}#{c['id']}")
                         continue
-                    ws = timed_words(text, c["start"], c["end"])
+                    spans = [(w["start"], w["end"]) for w in rw if c["start"] - 1e-3 <= w["start"] <= c["end"] + 1e-3]
+                    ws = timed_over(text, spans) if spans else timed_words(text.replace("*", ""), c["start"], c["end"])
                 for w in ws:
-                    w["emph"] = any(e and len(e) >= 2 and e in w["w"] for e in emph) if lang == "te" else False
+                    if lang == "te":
+                        w["emph"] = any(e and len(e) >= 2 and e in w["w"] for e in emph)
+                    else:
+                        w.setdefault("emph", False)
                 chunks.append({"start": c["start"], "end": c["end"], "words": ws})
-            if lang != "te" and chunks:
+            starred = any(w.get("hero") for ch in chunks for w in ch["words"])
+            if lang != "te" and chunks and not starred:  # *hero* words in the text win over the guess
                 _carry_emphasis(chunks, data["chunks"], lang, emph)
             limit = (cfg.at("subtitles.max_chars") or {}).get(lang, MAX_CHARS.get(lang, 18))
             chunks = [p for ch in chunks for p in split_lines(ch, limit, cfg.at("subtitles.max_lines", 2))]

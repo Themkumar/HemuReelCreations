@@ -58,7 +58,7 @@ def test_chunking_limits():
 
 
 def test_ass_has_one_event_per_word():
-    cfg = config.load(ROOT / "config.yaml")
+    cfg = config.load(ROOT / "config.yaml", {"subtitles": {"style": "classic"}, "layout": {"reel": {"fullbleed": False}}})
     ws = translate.timed_words("మన జీవితంలో ప్రతి క్షణం", 0, 2)
     ass = karaoke.build_ass({"lang": "te", "chunks": [{"start": 0, "end": 2, "words": ws}]}, cfg)
     assert ass.count("Dialogue:") == 4
@@ -87,7 +87,7 @@ def test_fix_rolling_overlaps():
 
 
 def test_karaoke_events_are_contiguous_and_two_line():
-    cfg = config.load(ROOT / "config.yaml")
+    cfg = config.load(ROOT / "config.yaml", {"subtitles": {"style": "classic"}, "layout": {"reel": {"fullbleed": False}}})
     ws = translate.timed_words("మన జీవితంలో ప్రతి క్షణం చాలా ముఖ్యమైనది తెలుసా", 0, 3)
     pieces = translate.split_lines({"start": 0, "end": 3, "words": ws}, 16, 2)
     assert all(max(w["line"] for w in p["words"]) <= 1 for p in pieces)
@@ -98,7 +98,7 @@ def test_karaoke_events_are_contiguous_and_two_line():
 
 
 def test_reel_layout_headline_and_captions_below_video():
-    cfg = config.load(ROOT / "config.yaml")
+    cfg = config.load(ROOT / "config.yaml", {"subtitles": {"style": "classic"}, "layout": {"reel": {"fullbleed": False}}})
     ws = translate.timed_words("three thousand rejections", 0, 2)
     box = (0, 480, 1080, 772)
     ass = karaoke.build_ass({"lang": "en", "chunks": [{"start": 0, "end": 2, "words": ws}]}, cfg, 1080, 1920,
@@ -125,7 +125,7 @@ def test_clean_cuts_remove_short_camera_flashes():
 
 def test_captions_never_blink_between_close_chunks():
     from hrc.karaoke import build_ass
-    cfg = config.load(ROOT / "config.yaml")
+    cfg = config.load(ROOT / "config.yaml", {"subtitles": {"style": "classic"}, "layout": {"reel": {"fullbleed": False}}})
     subs = {"lang": "en", "chunks": [
         {"start": 0.0, "end": 1.0, "words": [{"w": "one", "start": 0.0, "end": 0.5}, {"w": "two", "start": 0.5, "end": 1.0}]},
         {"start": 1.3, "end": 2.0, "words": [{"w": "three", "start": 1.3, "end": 2.0}]},
@@ -140,7 +140,7 @@ def test_captions_never_blink_between_close_chunks():
 
 def test_sfx_only_on_key_moments():
     from hrc.render import choose_sfx
-    cfg = config.load(ROOT / "config.yaml")
+    cfg = config.load(ROOT / "config.yaml", {"subtitles": {"style": "classic"}, "layout": {"reel": {"fullbleed": False}}})
     reel = {"visual_moments": [{}, {}, {}, {"sfx": True}, {"sfx": False}]}
     ev = lambda i, ty, t, **k: {"id": f"g{i:02d}", "type": ty, "t_in": t, "sfx_in": "pop",
                                 "sfx": [{"t": t, "kind": "whoosh"}], **k}
@@ -221,3 +221,90 @@ def test_depth_objects_keeps_near_things_below_eye_line():
     assert m[10, 130] == 0                              # lamp above the eye line dropped
     assert m[5, 5] == 0 and m[60, 80] == 0              # wall dropped, person itself not doubled
     assert not depth_objects(np.zeros((H, W), np.float32), depth).any()   # nobody in frame: nothing
+
+
+def _fake_vision(tmp_path):
+    """A stand-in for the Swift helper: answers each frame with a solid block in the middle."""
+    script = tmp_path / "fake_vision"
+    script.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys, struct\n"
+        "W, H = int(sys.argv[1]), int(sys.argv[2])\n"
+        "inp, out = sys.stdin.buffer, sys.stdout.buffer\n"
+        "while True:\n"
+        "    b = inp.read(W * H * 3)\n"
+        "    if len(b) < W * H * 3: break\n"
+        "    m = bytearray(W * H)\n"
+        "    for y in range(H // 4, 3 * H // 4):\n"
+        "        m[y * W + W // 4: y * W + 3 * W // 4] = b'\\xff' * (W // 2)\n"
+        "    out.write(struct.pack('<II', W, H) + bytes(m)); out.flush()\n")
+    script.chmod(0o755)
+    return script
+
+
+def test_matte_only_on_needed_frames(tmp_path, monkeypatch):
+    import subprocess
+    from hrc import matte
+    from hrc.util import ffmpeg
+    plate = tmp_path / "plate.mp4"
+    subprocess.run([ffmpeg(), "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=64x48:rate=30", "-t", "1",
+                    "-pix_fmt", "yuv420p", str(plate)], check=True)
+    monkeypatch.setattr(matte, "_vision_binary", lambda: _fake_vision(tmp_path))
+    out = tmp_path / "matte.mp4"
+    res = matte.make_matte(plate, out, "vision", objects=False, refine=False, depth_model=False,
+                           ranges=[(5, 10), (20, 25)], n_frames=30)
+    frames = [f[..., 0].mean() for f in matte._frames(out, 64, 48)]
+    assert len(frames) == 30
+    on = [i for i, v in enumerate(frames) if v > 20]
+    assert on == list(range(5, 10)) + list(range(20, 25))
+    assert res["matted_frames"] == 10
+
+
+def test_frame_ranges_merge_and_handles():
+    from hrc.matte import frame_ranges
+    r = frame_ranges([(1.0, 2.0), (2.3, 3.0), (10.0, 11.0)], 30, 400, handle=0.3)
+    assert r == [(21, 99), (291, 339)]
+
+
+def test_realign_spreads_squashed_words_over_speech():
+    import numpy as np
+    from hrc import realign as R
+    sr = 16000
+    t = np.arange(sr * 4) / sr
+    y = np.random.default_rng(0).normal(0, 0.002, len(t)).astype(np.float32)
+    true = [(0.5, 0.8), (0.9, 1.3), (1.4, 1.6), (1.75, 2.3), (2.4, 2.7), (2.8, 3.4)]
+    for a, b in true:
+        m = (t >= a) & (t < b)
+        y[m] += 0.3 * np.sin(2 * np.pi * 800 * t[m]) * np.hanning(m.sum())
+    env = R.speech_envelope(y, sr)
+    words = [{"word": "aaa", "start": 0.5, "end": 0.8, "confidence": 0.9, "cue": 1}]
+    words += [{"word": w, "start": 0.9, "end": 0.92, "confidence": 0.2, "cue": 1} for w in ["bbbb", "cc", "dddddd", "ccc"]]
+    words += [{"word": "eeeeee", "start": 0.92, "end": 3.4, "confidence": 0.7, "cue": 1}]
+    fixed, st = R.realign(words, env)
+    assert st["runs"] == 1 and fixed[0]["start"] == 0.5
+    for w, (a, _) in zip(fixed, true):
+        assert abs(w["start"] - a) < 0.12
+
+
+def test_english_hero_words_and_speech_timing():
+    from hrc.translate import timed_over
+    ws = timed_over("I'd write '*Italian*' on it", [(0.0, 1.0), (2.0, 3.0)])
+    assert [w["w"] for w in ws] == ["I'd", "write", "'Italian'", "on", "it"]
+    assert [w["hero"] for w in ws] == [False, False, True, False, False]
+    assert all(not (1.0 < w["start"] < 2.0) for w in ws)  # nothing starts inside the pause
+
+
+def test_punch_captions_lead_words_stay_under_hero():
+    from hrc import karaoke
+
+    class C:
+        def at(self, k, d=None):
+            return {"subtitles": {"style": "punch", "hold_gap_sec": 0.6}}.get(k, d)
+    subs = {"lang": "en", "chunks": [{"start": 0, "end": 2, "words": [
+        {"w": "In", "start": 0, "end": .3}, {"w": "this", "start": .3, "end": .6},
+        {"w": "entire", "start": .6, "end": 1}, {"w": "unpredictable", "start": 1, "end": 1.8, "hero": True}]}]}
+    ass = karaoke.build_ass(subs, C())
+    lead = [l for l in ass.splitlines() if ",Lead," in l]
+    hero = [l for l in ass.splitlines() if ",Hero," in l]
+    assert lead[-1].split(",")[2] == hero[0].split(",")[2]  # lead line stays up while the hero word shows
+    assert "In This Entire" in lead[-1] and "Unpredictable" in hero[0]

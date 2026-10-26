@@ -43,6 +43,10 @@ def export_reel(cfg, reel: dict, rdir: Path, preview: bool = False, langs: list[
              *enc, "-c:a", "aac", "-b:a", abr, "-ar", "48000", "-movflags", "+faststart", "-shortest", out])
         outs.append(out)
         log.info("Exported %s", out.relative_to(cfg.root))
+        if not preview and cfg.at("export.phone_preview", True):  # small copy to watch on a phone / share in chat
+            ph = odir / f"{reel['id']}_{lang}{tag}_phone.mp4"
+            run([ffmpeg(), "-y", "-v", "error", "-i", out, "-vf", "scale=540:-2", "-c:v", "libx264", "-preset", "slow",
+                 "-crf", "27", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", ph])
     if not preview and cfg.at("export.clean_version", True):
         out = odir / f"{reel['id']}_clean{tag}.mp4"
         run([ffmpeg(), "-y", "-v", "error", "-i", rdir / "clean.mp4", "-i", rdir / "mix.wav", *enc,

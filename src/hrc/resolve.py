@@ -87,15 +87,18 @@ def build_video_layer(cfg, rdir: Path, info: dict, out: Path, fps: int) -> None:
     has_matte = (rdir / "matte.mp4").exists() and info.get("matte", {}).get("engine", "none") != "none"
     mats = matte._frames(rdir / "matte.mp4", bw, bh) if has_matte else None
     yy, xx = np.ogrid[:bh, :bw]
-    vig = (1 - 0.35 * ((((xx - bw / 2) / (bw / 2)) ** 2 + ((yy - bh / 2) / (bh / 2)) ** 2) / 2))[..., None].astype(np.float32)
+    vstr = float((cfg.at("grade") or {}).get("vignette", 0.35))
+    vig = (1 - vstr * ((((xx - bw / 2) / (bw / 2)) ** 2 + ((yy - bh / 2) / (bh / 2)) ** 2) / 2))[..., None].astype(np.float32)
     canvas = np.zeros((FH, FW, 3), np.uint8)
     wr = subprocess.Popen([ffmpeg(), "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{FW}x{FH}",
                            "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "12",
                            "-pix_fmt", "yuv420p", str(out)], stdin=subprocess.PIPE)
+    particles_on = bool(cfg.at("gfx.particles", True))
     for fr in matte._frames(rdir / "plate.mp4", bw, bh):
         base = fr.astype(np.float32)
         layer = base.copy()
-        parts.draw(layer, 0.25)
+        if particles_on:
+            parts.draw(layer, 0.25)
         if mats is not None:
             m = next(mats, None)
             a = (m[..., 0:1].astype(np.float32) / 255.0) if m is not None else 0.0
@@ -121,6 +124,12 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
             continue
         rend = gfx.GfxRenderer([ev], bw, bh, fps, colors, info.get("seed", 0))
         rend.particles = _NoParticles()
+        rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and bh > bw
+        if cfg.at("gfx.track", True):  # same pinned-to-the-room movement as the finished render
+            rend.cams = heads
+            cj = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
+            rend.switches = sorted(int(round(t * fps)) for t in cj.get("camera_switches", [])
+                                   + cj.get("segment_joins", []) + cj.get("reaction_cuts", []))
         photo = None
         if ev.get("file") and ev["type"] in ("image", "broll") and rend._wants_backdrop(ev):
             photo = _photo_layers(cfg, ev, rend, heads, media, box, FW, FH, f0, f1, fps)

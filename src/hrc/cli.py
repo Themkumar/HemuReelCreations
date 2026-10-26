@@ -106,7 +106,7 @@ def _render(cfg, a, preview):
             if not preview and fmt == "reel" and cfg.at("export.resolve_pack", True):
                 from . import resolve
                 for lang in (a.resolve_langs.split(",") if getattr(a, "resolve_langs", None)
-                             else cfg.at("export.resolve_langs", ["te"])):
+                             else cfg.at("export.resolve_langs", ["en"])):
                     resolve.build_pack(cfg, reel, rdir, lang)
 
 
@@ -118,7 +118,7 @@ def cmd_resolve(cfg, a):
         rdir = cfg.dir("renders") / (reel["id"] + render.suffix("reel", False))
         if not (rdir / "render.json").exists():
             raise FileNotFoundError(f"{reel['id']} is not rendered yet. Run `hrc render --reel {reel['id']}` first.")
-        for lang in (a.lang.split(",") if a.lang else cfg.at("export.resolve_langs", ["te"])):
+        for lang in (a.lang.split(",") if a.lang else cfg.at("export.resolve_langs", ["en"])):
             resolve.build_pack(cfg, reel, rdir, lang)
 
 
@@ -127,13 +127,23 @@ def cmd_render(cfg, a):
 
 
 def cmd_preview(cfg, a):
-    a.langs = a.langs or "te"
+    a.langs = a.langs or ",".join(cfg.at("reel.languages", ["en"]))
     _render(cfg, a, preview=True)
 
 
 def cmd_qa(cfg, a):
     from . import qa
     qa.run_stage(cfg, a.reel, a.preview)
+
+
+def cmd_realign(cfg, a):
+    from . import realign
+    realign.run_stage(cfg, a.force)
+
+
+def cmd_reactions(cfg, a):
+    from . import reactions
+    reactions.run_stage(cfg, a.force)
 
 
 def cmd_sample(cfg, a):
@@ -147,7 +157,7 @@ def cmd_demo_plan(cfg, a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="hrc", description="HemuReelCreations: podcast -> reels with 5-language karaoke subtitles")
+    p = argparse.ArgumentParser(prog="hrc", description="HemuReelCreations: podcast -> English-captioned reels")
     p.add_argument("--config", default="config.yaml")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -164,6 +174,8 @@ def main(argv=None):
     add("doctor", cmd_doctor, "check ffmpeg, Python packages, fonts, GPU, inputs")
     add("ingest", cmd_ingest, "Stage A: parse SRT, extract audio, find shots and faces", force=True)
     add("align", cmd_align, "Stage B: word-level timing -> cache/words.json", force=True)
+    add("realign", cmd_realign, "Stage B2: second timing pass for squashed words + speech onsets (exact graphic landing)", force=True)
+    add("reactions", cmd_reactions, "find listener reaction shots in the podcast (who is on screen, who is talking)", force=True)
     sp = add("select", cmd_select, "Stage C: prepare transcript for reel picking, or check reels_plan.json")
     sp.add_argument("action", choices=["prepare", "check"])
     add("approve", cmd_approve, "approve reels_plan.json so rendering can start")
@@ -171,7 +183,7 @@ def main(argv=None):
     sp.add_argument("action", choices=["prepare", "build"])
     add("assets", cmd_assets, "Stage E: find images for visual moments", reel=True, force=True)
     for name, fn, h in (("render", cmd_render, "Stages F-H: full-quality render and export"),
-                        ("preview", cmd_preview, "fast 540x960 draft (Telugu subtitles by default)")):
+                        ("preview", cmd_preview, "fast 540x960 draft")):
         sp = add(name, fn, h, reel=True, force=True)
         sp.add_argument("--langs", help="comma separated, e.g. te,en")
         sp.add_argument("--resolve-langs", dest="resolve_langs", help="languages for the layered Resolve pack (default: export.resolve_langs)")

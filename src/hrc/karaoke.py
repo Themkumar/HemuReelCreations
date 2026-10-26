@@ -52,9 +52,106 @@ def _headline_text(text: str, latin: bool, accent: str, max_chars: int) -> str:
     return "\\N".join(out)
 
 
+STOP = set("a an the and or but so to of in on at for with is are was were be been it its i you he she we they "
+           "my your his her our their me him us them this that these those do did does not no as by from up "
+           "just very really then than if when what who how all can could would will i'd i'm it's don't".split())
+
+
+def beats(words: list[dict], max_words: int = 3) -> list[list[dict]]:
+    """Group a caption's words into short beats of 1-3 words. A hero word always ends its beat,
+    so it lands as the big word under the small lead-in words."""
+    out, cur = [], []
+    for i, w in enumerate(words):
+        cur.append(w)
+        nxt_hero = i + 1 < len(words) and words[i + 1].get("hero")
+        if w.get("hero") or w["w"][-1:] in ",.!?;:" or (len(cur) >= max_words and not nxt_hero):
+            out.append(cur); cur = []
+    if cur:
+        if out and len(cur) == 1 and not out[-1][-1].get("hero") and len(out[-1]) < max_words + 1:
+            out[-1].extend(cur)
+        else:
+            out.append(cur)
+    return out
+
+
+def _title(w: str) -> str:
+    return w if any(c.isupper() for c in w[1:]) or not w[:1].isalpha() else w[:1].upper() + w[1:]
+
+
+def build_ass_punch(subs: dict, cfg, width: int = 1080, height: int = 1920, duration: float | None = None) -> str:
+    """Reference-reel captions: a few small white words that appear as they are spoken, and the key
+    word of the line big, in a glowing italic serif, right under them."""
+    sc = dict(cfg.at("subtitles", {}))
+    ps = dict(sc.get("punch", {}))
+    k = width / 1080
+    lead_font, hero_font = ps.get("lead_font", "Inter SemiBold"), ps.get("hero_font", "Playfair Hero")
+    lead_size, hero_size = int(ps.get("lead_size", 58) * k), int(ps.get("hero_size", 168) * k)
+    hero_col = ass_color(ps.get("hero_color", "#F4E73A"))
+    glow_col = ass_color(ps.get("glow_color", "#E8D700"))
+    y_lead = int(height * float(ps.get("y", 0.6)))
+    y_hero = y_lead + int(lead_size * 0.55)
+    x = width // 2
+    max_w = int(ps.get("max_words", 3))
+    head = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {width}
+PlayResY: {height}
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Lead,{lead_font},{lead_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H78000000,0,0,0,0,100,100,0,0,1,0,{max(1, int(3 * k))},8,60,60,0,1
+Style: Hero,{hero_font},{hero_size},{hero_col},{hero_col},&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,8,40,40,0,1
+Style: Glow,{hero_font},{hero_size},{glow_col},{glow_col},{glow_col},&H00000000,0,0,0,0,100,100,0,0,1,{max(2, int(10 * k))},0,8,40,40,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    hold = float(sc.get("hold_gap_sec", 0.6))
+    lead = float(sc.get("lead_sec", 0.05))
+    all_beats = []
+    for ch in subs["chunks"]:
+        for b in beats([w for w in ch["words"] if w["w"].strip()], max_w):
+            all_beats.append(b)
+    lines = []
+    for bi, b in enumerate(all_beats):
+        t0 = max(0.0, b[0]["start"] - lead)
+        nxt = all_beats[bi + 1][0]["start"] - lead if bi + 1 < len(all_beats) else None
+        t1 = b[-1]["end"] + 0.25
+        if nxt is not None and (nxt - t1 < hold or nxt < t1):
+            t1 = nxt  # hand over to the next beat on the same frame: nothing blinks
+        if t1 - t0 < 0.12:
+            t1 = t0 + 0.12
+        hero = b[-1] if b[-1].get("hero") else None
+        small = b[:-1] if hero else b
+        # lead words: each appears when it is spoken and stays for the beat
+        if small:
+            for i, w in enumerate(small):
+                a = max(t0, w["start"] - lead)
+                if a >= t1:
+                    break
+                txt = " ".join(_esc(_title(x["w"])) for x in small[: i + 1])
+                e = max(a + 0.01, min(t1, small[i + 1]["start"] - lead)) if i + 1 < len(small) else t1
+                lines.append(f"Dialogue: 2,{ass_time(a)},{ass_time(e)},Lead,,0,0,0,,{{\\an8\\pos({x},{y_lead})}}{txt}")
+        if hero:
+            a = max(t0, hero["start"] - lead)
+            if a < t1:
+                word = _esc(_title(hero["w"].strip("'\"‘’“”,.;:")))
+                pop = "\\fscx118\\fscy118\\t(0,140,\\fscx100\\fscy100)"
+                lines.append(f"Dialogue: 0,{ass_time(a)},{ass_time(t1)},Glow,,0,0,0,,"
+                             f"{{\\an8\\pos({x},{y_hero})\\blur{int(14 * k)}\\alpha&H70&\\1a&HFF&{pop}}}{word}")
+                lines.append(f"Dialogue: 1,{ass_time(a)},{ass_time(t1)},Hero,,0,0,0,,"
+                             f"{{\\an8\\pos({x},{y_hero})\\blur0.6{pop}}}{word}")
+    return head + "\n".join(lines) + "\n"
+
+
 def build_ass(subs: dict, cfg, width: int = 1080, height: int = 1920, box=None, headline: str | None = None,
               duration: float | None = None) -> str:
     sc = dict(cfg.at("subtitles", {}))
+    if sc.get("style") == "punch" and subs.get("lang") == "en":
+        return build_ass_punch(subs, cfg, width, height, duration)
     framed = box is not None and (box[2], box[3]) != (width, height)  # reel: video box inside a 9:16 frame
     if width > height:  # landscape: lower on screen, no right-edge UI to avoid
         sc.update(sc.get("landscape", {"y_position": 0.84, "bottom_safe": 0.05, "right_safe": 0.0}))

@@ -138,7 +138,8 @@ def _context_card(first: np.ndarray, text: str, W: int, H: int, n: int, colors) 
     return frames
 
 
-def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_times: list[float], preview: bool) -> dict:
+def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_times: list[float], preview: bool,
+                reactions: list[dict] | None = None) -> dict:
     cache = cfg.dir("cache")
     info = read_json(cache / "video_info.json")
     faces = read_json(cache / "faces.json")
@@ -158,7 +159,11 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
     Hv = H - int(round(H * band / 2)) * 2
     off = H - Hv
 
+    grade = make_grade(cfg.at("grade"))
+
     def place(img: np.ndarray) -> np.ndarray:
+        if grade is not None:
+            img = grade(img)
         if not off:
             return img
         if heads:
@@ -196,6 +201,22 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
         first = _with_top_band(_crop(fr0, paths[0][0], 1.0, W, Hv, []), W, H, off) if off else _crop(fr0, paths[0][0], 1.0, W, H, [])
         for cf in _context_card(first, reel["context_card"], W, H, card_n, cfg.at("project.brand_colors")):
             wr.stdin.write(cf.tobytes())
+    react_at: dict[int, tuple[int, int]] = {}  # output frame -> (which listener cutaway, frame in it)
+    for ri, r in enumerate(reactions or []):
+        f0, f1 = int(round(r["t0"] * fps)), int(round(r["t1"] * fps))
+        for k in range(f1 - f0):
+            react_at[f0 + k] = (ri, k)
+    r_cache: dict = {}
+
+    def react_frame(ri: int, k: int):
+        if ri not in r_cache:  # decode one cutaway at a time, only when it is reached
+            r_cache.clear()
+            r = reactions[ri]
+            n = int(round(r["t1"] * fps)) - int(round(r["t0"] * fps))
+            r_cache[ri] = reaction_frames(video, r, n, fps, sw, sh, W, Hv, float(cfg.at("reactions.head_room", 0.32)),
+                                          float(cfg.at("reactions.push_in", 0.035)))
+        frs, hd = r_cache[ri]
+        return (frs[min(k, len(frs) - 1)], hd) if frs else (None, None)
     fi = card_n
     for seg, path, fmap in zip(segs, paths, maps):
         n = int(round((seg["end"] - seg["start"]) * fps))
@@ -211,15 +232,75 @@ def build_plate(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, emph_time
             if cur is None:
                 break
             j = min(want, cur_i, len(path) - 1)
-            wr.stdin.write(place(_crop(cur, path[j], zoom[min(fi, total - 1)], W, Hv, heads)).tobytes())
+            img = _crop(cur, path[j], zoom[min(fi, total - 1)], W, Hv, heads)
+            if fi in react_at:  # the listener's reaction replaces the picture; the speaker's sound goes on
+                rimg, rhead = react_frame(*react_at[fi])
+                if rimg is not None:
+                    img, heads[-1] = rimg, dict(rhead)
+            wr.stdin.write(place(img).tobytes())
             fi += 1
         reader.close()
     wr.stdin.close(); wr.wait()
     card_head = heads[0] if heads else {"x": W / 2, "y": H * 0.3, "size": W * 0.15}
     heads = [card_head] * card_n + heads
     write_json(rdir / "heads.json", heads)
-    write_json(rdir / "cuts.json", {"camera_switches": switch_times, "segment_joins": planlib.cut_points(reel)})
+    r_cuts = sorted({t for r in reactions or [] for t in (r["t0"], r["t1"])})
+    write_json(rdir / "cuts.json", {"camera_switches": switch_times, "segment_joins": planlib.cut_points(reel),
+                                    "reaction_cuts": r_cuts})
     return {"frames": total, "card_frames": card_n}
+
+
+def make_grade(g: dict | None):
+    """Cinematic look as a fast per-pixel function: a little darker, more contrast, warm skin, calmer
+    colour. Built once per reel as lookup tables."""
+    if not g or not g.get("enabled", True):
+        return None
+    x = np.arange(256, dtype=np.float32) / 255.0
+    x = np.clip(x * (2 ** float(g.get("exposure", -0.15))), 0, 1)
+    c = float(g.get("contrast", 1.15))
+    x = np.clip(0.5 + (x - 0.5) * c, 0, 1)
+    x = x ** float(g.get("gamma", 1.08))  # deeper shadows, like a dark studio
+    warm = float(g.get("warmth", 0.03))
+    luts = [np.clip(x * (1 + warm) * 255, 0, 255), np.clip(x * 255, 0, 255), np.clip(x * (1 - warm) * 255, 0, 255)]
+    luts = [l.astype(np.uint8) for l in luts]
+    sat = float(g.get("saturation", 0.9))
+
+    def apply(img: np.ndarray) -> np.ndarray:
+        out = np.empty_like(img)
+        for ch in range(3):
+            out[..., ch] = cv2.LUT(img[..., ch], luts[ch])
+        if abs(sat - 1) > 1e-3:
+            grey = cv2.cvtColor(out, cv2.COLOR_RGB2GRAY)[..., None].astype(np.float32)
+            out = np.clip(grey + (out.astype(np.float32) - grey) * sat, 0, 255).astype(np.uint8)
+        return out
+    return apply
+
+
+def reaction_frames(video, r: dict, n: int, fps: int, src_w: int, src_h: int, W: int, H: int,
+                    head_room: float = 0.32, push: float = 0.035):
+    """The listener's cutaway: a steady 9:16 close-up on their face with a slow push-in."""
+    aspect = W / H
+    cw = min(src_w, src_h * aspect)
+    ch = cw / aspect
+    fx, fy = r["cx"] * src_w, r["cy"] * src_h
+    x = float(np.clip(fx - cw / 2, 0, src_w - cw))
+    y = float(np.clip(fy - ch * head_room, 0, src_h - ch))
+    frames = []
+    for k, fr in enumerate(_reader(video, r["src"], n / fps + 0.2, fps, src_w, src_h)):
+        if k >= n:
+            break
+        z = 1 + push * (k / max(1, n - 1))
+        cw_, ch_ = cw / z, ch / z
+        x_ = x + (fx - x) * (1 - 1 / z)
+        y_ = y + (fy - y) * (1 - 1 / z)
+        crop = fr[int(y_):int(y_ + ch_), int(x_):int(x_ + cw_)]
+        frames.append(cv2.resize(crop, (W, H), interpolation=cv2.INTER_AREA))
+    while frames and len(frames) < n:
+        frames.append(frames[-1])
+    s = W / cw
+    head = {"x": round((fx - x) * s, 1), "y": round((fy - y) * s, 1), "size": round(r["h"] * src_h * s, 1),
+            "cam": [round(x, 2), round(y, 2), round(s, 5)], "reaction": True}
+    return frames, head
 
 
 def _with_top_band(img: np.ndarray, W: int, H: int, off: int) -> np.ndarray:
@@ -247,7 +328,8 @@ def _crop(fr: np.ndarray, box: dict, z: float, W: int, H: int, heads: list) -> n
     crop = fr[int(y):int(y + ch), int(x):int(x + cw)]
     out = cv2.resize(crop, (W, H), interpolation=cv2.INTER_AREA if z < 1.5 else cv2.INTER_LINEAR)
     s = W / cw
-    heads.append({"x": round((hx_src - x) * s, 1), "y": round((hy_src - y) * s, 1), "size": round(head["size"] * z, 1)})
+    heads.append({"x": round((hx_src - x) * s, 1), "y": round((hy_src - y) * s, 1), "size": round(head["size"] * z, 1),
+                  "cam": [round(x, 2), round(y, 2), round(s, 5)]})
     return np.ascontiguousarray(out)
 
 
@@ -262,10 +344,19 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
             if e["anchor"] == "behind_head":
                 e["anchor"] = "top_split"
     rend = gfx.GfxRenderer(events, W, H, fps, colors, seed)
+    rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and H > W
+    if not cfg.at("gfx.particles", True):
+        rend.particles = _NoParticles()
+    if cfg.at("gfx.track", True):
+        rend.cams = heads
+        cj = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
+        rend.switches = sorted(int(round(t * fps)) for t in cj.get("camera_switches", []) + cj.get("segment_joins", [])
+                               + cj.get("reaction_cuts", []))
     cuts = [int(round(t * fps)) for t in planlib.cut_points(reel)]
     names = transitions.choose(len(cuts), reel.get("mood", "inspirational"), cfg.at("transitions.library"), seed)
     yy, xx = np.ogrid[:H, :W]
-    vig = (1 - 0.35 * ((((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2))[..., None].astype(np.float32)
+    vstr = float((cfg.at("grade") or {}).get("vignette", 0.35))
+    vig = (1 - vstr * ((((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2))[..., None].astype(np.float32)
     logo = _logo(cfg, W, H)
     enc = video_encoder_args(cfg, preview) if preview else ["-c:v", "libx264", "-preset", "fast", "-crf", "15", "-pix_fmt", "yuv420p"]
     if framing:
@@ -329,6 +420,11 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     wr.stdin.close(); wr.wait()
     return {"transitions": [{"t": round(c / fps, 3), "name": n} for c, n in zip(cuts, names)],
             "face_overlap_frames": overlap}
+
+
+class _NoParticles:
+    def draw(self, dst, strength):
+        return None
 
 
 def brand_mark(cfg, size: int, color: str | None = None) -> np.ndarray | None:
@@ -500,9 +596,9 @@ def video_box(cfg, fmt: str, preview: bool) -> tuple[int, int, int, int]:
     """Where the moving picture sits inside the frame: (x, y, w, h). For `reel` (the default), the
     landscape video sits as a wide box in a 9:16 frame, with a headline above and captions below."""
     W, H = dims(cfg, fmt, preview)
-    if fmt != "reel":
-        return 0, 0, W, H
     lay = cfg.at("layout.reel", {}) or {}
+    if fmt != "reel" or lay.get("fullbleed"):  # full-bleed: the close-up fills the whole 9:16 frame
+        return 0, 0, W, H
     vw = W
     vh = int(round(vw / float(lay.get("video_aspect", 1.4)) / 2)) * 2
     vy = int(round(H * float(lay.get("video_top", 0.27)) / 2)) * 2
@@ -533,18 +629,42 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     emph = set(reel.get("emphasis_words", []))
     emph_times = [w["start"] for w in rw if any(e and e in w["word"] for e in emph)]
 
+    from . import reactions as react, realign
+    events = gfx.build_timeline(reel, rw, manifest, fps, duration, cfg.at("gfx.lead_frames", 1),
+                                cfg.at("gfx.default_hold_sec", 2.2), seed,
+                                onsets=realign.load_onsets(cfg) if cfg.at("gfx.snap_to_onset", True) else None)
+    lib_path = cfg.dir("cache") / "reactions.json"
+    rplan = []
+    if fmt != "landscape" and lib_path.exists() and (cfg.at("reactions.enabled", True)):
+        lib = read_json(lib_path)
+        rplan = react.plan_reel(cfg, reel, rw, events, lib)
+        if rplan:
+            log.info("%s: %d reaction shot(s) of the listener: %s", reel["id"], len(rplan),
+                     ", ".join(f"{r['t0']:.1f}-{r['t1']:.1f}s" for r in rplan))
+
     fp_plate = fingerprint(__import__("hrc").__version__, reel.get("segments"), reel.get("context_card"), emph_times, W, H, cfg.at("reframe"),
-                           cfg.dir("cache") / "faces.json")
+                           cfg.at("grade"), rplan, cfg.dir("cache") / "faces.json")
     if not cached(rdir / "plate.mp4", fp_plate, force):
         log.info("%s: framing %s with steady face tracking (%dx%d)...", reel["id"], fmt, W, H)
-        build_plate(cfg, reel, rdir, W, H, fps, emph_times, preview)
+        build_plate(cfg, reel, rdir, W, H, fps, emph_times, preview, rplan)
         mark(rdir / "plate.mp4", fp_plate)
+    n_frames = int(round(planlib.content_duration(reel) * fps))
+    cuts_info = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
+    end_at_cuts(events, cuts_info.get("camera_switches", []) + cuts_info.get("segment_joins", []))
 
-    fp_matte = fingerprint(fp_plate, cfg.at("matte"))
+    # the cut-out is made only where a graphic sits behind the speaker (plus short handles)
+    only_needed = bool(cfg.at("matte.only_where_needed", True))
+    ranges = matte.frame_ranges([(e["t_in"], e["t_out"]) for e in events], fps, n_frames,
+                                float(cfg.at("matte.handle_sec", 0.3))) if only_needed else None
+    refiner = cfg.at("matte.edge_model") if cfg.at("matte.edge_refine_model", True) else None
+    fp_matte = fingerprint(fp_plate, cfg.at("matte"), ranges)
     mres = {"engine": "none", "flicker": None}
     if cached(rdir / "matte.mp4", fp_matte, force):
         mres = read_json(rdir / "matte.json")
     else:
+        if ranges is not None:
+            log.info("%s: cut-out on %d of %d frames (%d stretch(es) with a graphic behind the speaker).", reel["id"],
+                     sum(b - a for a, b in ranges), n_frames, len(ranges))
         mres = matte.make_matte(rdir / "plate.mp4", rdir / "matte.mp4", cfg.at("matte.engine", "auto"),
                                 cfg.at("matte.downsample", 0.4), cfg.at("matte.temporal_smooth", 0.6),
                                 objects=bool(cfg.at("matte.objects", True)), refine=bool(cfg.at("matte.refine_edges", True)),
@@ -552,7 +672,8 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
                                 depth_model=bool(cfg.at("matte.depth", True)),
                                 use_depth_objects=bool(cfg.at("matte.depth_objects", True)),
                                 depth_tol=float(cfg.at("matte.depth_tolerance", -0.03)),
-                                region_top=float(cfg.at("matte.object_region_top", 0.15)))
+                                region_top=float(cfg.at("matte.object_region_top", 0.15)),
+                                ranges=ranges, refiner=refiner, n_frames=n_frames)
         write_json(rdir / "matte.json", mres)
         if mres["engine"] != "none":
             mark(rdir / "matte.mp4", fp_matte)
@@ -562,10 +683,6 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
             except OSError:
                 pass
 
-    events = gfx.build_timeline(reel, rw, manifest, fps, duration, cfg.at("gfx.lead_frames", 1),
-                                cfg.at("gfx.default_hold_sec", 2.2), seed)
-    cuts_info = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}
-    end_at_cuts(events, cuts_info.get("camera_switches", []) + cuts_info.get("segment_joins", []))
     log.info("%s (%s): %d speech-tied graphics, compositing...", reel["id"], fmt, len(events))
     comp = composite(cfg, reel, rdir, W, H, fps, events, mres["engine"] != "none", preview, seed,
                      framing=(FW, FH, box) if (FW, FH) != (W, H) else None)
@@ -585,7 +702,7 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     used = audio.mix(cfg, speech, duration, sfx_events, reel.get("mood", "inspirational"), rdir / "mix.wav", seed)
     write_json(rdir / "render.json", {"reel": reel["id"], "format": fmt, "size": [FW, FH], "video_box": list(box),
                                       "seed": seed, "duration": duration, "outro_sec": planlib.outro_sec(reel), "gfx": events,
-                                      **comp, "audio": used, "matte": mres})
+                                      **comp, "audio": used, "matte": mres, "reactions": rplan})
     log.info("%s: picture and sound ready (%d transitions, %d SFX, music: %s).", reel["id"],
              len(comp["transitions"]), len(used["sfx"]), Path(used["music"]).name if used["music"] else "none")
     return rdir
