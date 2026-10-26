@@ -15,17 +15,26 @@ from .util import read_json, ts, write_json
 
 BRIEF = """You are picking viral Instagram Reels / YouTube Shorts from a Telugu podcast.
 
-Propose {cmin}-{cmax} reels, each {lo}-{hi} seconds (never over {hi}), that a first-time Telugu viewer understands
-without watching the podcast. Use only complete statements: every segment starts at the start of a
-thought and ends when it is finished. The reel must tell a whole story. Each needs a hook in the first 2 seconds, context, and a payoff.
-Cut only on sentence boundaries (use the timestamps given). A reel may join 2-3 segments
-from nearby parts of the talk if that tells the story better.
+Propose the {cmin}-{cmax} most powerful reels of the episode, ranked (rank 1 = strongest), that a first-time
+Telugu viewer understands without watching the podcast. The ideal reel is about 60 seconds. A reel may run up
+to {hi} seconds (never over {hi}, at least {lo}) only when it tells one complete story; build those like a
+cinematic suspense edit: a cold-open hook (the most gripping line of the story, played first), then the host's
+question that sets it up (the host is Hemu, the one without a cap), then the story in order, ending on the payoff.
+Use only complete statements: every segment starts at the start of a thought and ends when it is finished.
+Each reel needs a hook in the first 2 seconds, context, and a payoff. Cut only on sentence boundaries (use the
+timestamps given). A reel may join several segments from nearby parts of the talk if that tells the story better;
+segments must not overlap.
+Give each reel a text "look", rotating so each look is used about equally:
+"classic" (karaoke captions, stacked words), "glow" (small white words + a glowing yellow key word),
+"slab" (one huge red keyword behind the speaker, one bold word at a time).
 
 Return JSON exactly in this shape:
 {{
   "approved": false,
   "reels": [{{
     "id": "reel01",
+    "rank": 1,
+    "look": "classic | glow | slab",
     "title": "short English working title",
     "segments": [{{"start": "00:12:03.400", "end": "00:12:48.900"}}],
     "hook": "Telugu hook line (as spoken, or a title card)",

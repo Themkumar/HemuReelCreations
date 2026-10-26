@@ -26,11 +26,11 @@ reel:
   height: 1920
   fps: 30
   min_sec: 30
-  max_sec: 90
-  count_min: 10
-  count_max: 10
+  max_sec: 90                # ideal ~60 s; up to 90 s only for a complete story
+  count_min: 6               # v0.9: only the 6 strongest reels per episode, ranked
+  count_max: 6
   languages: [en]   # English captions only (the speech stays Telugu). Add te, hi, ta, kn to bring them back.
-  formats: [reel]   # reel = 9:16 (full-screen close-up with layout.reel.fullbleed, else a wide box with a headline)
+  formats: [reel]   # reel = 9:16 (the full 16:9 wide shot boxed, headline above; layout.reel.fullbleed: true = close-up)
                     # also possible: landscape (plain 16:9 1920x1080), portrait (face-tracked 9:16 crop)
 
 layout:
@@ -83,6 +83,8 @@ subtitles:
     small_size: 56
     alt_small_font: Playfair Hero   # every other beat the small word is an italic serif, like the reference
     colors: ["#FFC928", "#3DDC6A", "#33D6C3", "#E8302A", "#FFFFFF"]
+    min_beat_sec: 0.65       # v0.9: a word shown shorter than this joins the next one, so captions never rush
+    merge_chars: 13          # ...unless the joined caption would be longer than this many letters
   max_lines: 2               # line 2 appears under line 1 only when a sentence needs it
   max_chars: {te: 15, kn: 15, ta: 14, hi: 19, en: 21}   # longest line per language
   font_size: 100            # at 1080 wide (portrait)
@@ -103,7 +105,7 @@ subtitles:
     kn: Noto Sans Kannada
     en: Inter SemiBold
 
-grade:                      # cinematic look on the podcast picture (darker room, deeper shadows, warm skin)
+grade:                      # v0.8.2: brightness lift only; everything else stays neutral
   enabled: true
   exposure: 0.12            # stops (v0.8.2: brightness lift only, no other colour grading)
   contrast: 1.0
@@ -158,6 +160,9 @@ gfx:
   particles: false          # floating dots behind the speaker (off for the clean reference look)
   default_hold_sec: 2.8       # v0.9: words stay up long enough to read (cinematic)
   cinematic: true           # slow, soft landings (no glitch/snap animations)
+  side_in_front: false      # keep false: on wide shots words beside the head stay behind the mic arm too
+  close_up_front: false     # keep false: big words and counters always sit BEHIND you (true = in front on close-ups)
+  big_counters: true        # v0.9: counters are a big count-up number (hero font) with a small label
   hero_word: true           # v0.8.2: text moments = ONE huge keyword across the picture, behind the speaker
   hero_font: AlfaSlabOne-400.ttf
   hero_color: "#E8302A"

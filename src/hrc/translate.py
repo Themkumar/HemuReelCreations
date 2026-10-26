@@ -136,21 +136,36 @@ def timed_over(text: str, spans: list[tuple[float, float]]) -> list[dict]:
 
 def retime_chunks(chunks: list[dict], rw: list[dict]) -> int:
     """After a timing pass changes word times, move each chunk's start/end to its own words again.
-    Chunks were cut from the reel's words in order, so they map back one to one."""
-    if sum(len(c["te"].split()) for c in chunks) != len(rw):
-        return 0
-    i = moved = 0
+    Chunks are matched to the reel's words by their Telugu text (the reel may play its segments out
+    of clock order, e.g. a cold open), nearest to the chunk's old time. Each chunk keeps the index
+    range of its words in "_idx" so every word belongs to exactly one chunk."""
+    names = [w["word"] for w in rw]
+    used = [False] * len(rw)
+    moved = 0
     for c in chunks:
-        n = len(c["te"].split())
-        ws = rw[i:i + n]
-        i += n
-        if not ws or " ".join(w["word"] for w in ws) != c["te"]:
+        toks = c["te"].split()
+        n = len(toks)
+        hits = [i for i in range(len(rw) - n + 1)
+                if names[i:i + n] == toks and not any(used[i:i + n])]
+        if not n or not hits:
             continue
-        s, e = ws[0]["start"], ws[-1]["end"]
+        i = min(hits, key=lambda k: abs(rw[k]["start"] - c["start"]))
+        for k in range(i, i + n):
+            used[k] = True
+        c["_idx"] = (i, i + n)
+        s, e = rw[i]["start"], rw[i + n - 1]["end"]
         if abs(s - c["start"]) > 1e-3 or abs(e - c["end"]) > 1e-3:
             c["start"], c["end"] = s, e
             moved += 1
     return moved
+
+
+def chunk_words_of(c: dict, rw: list[dict]) -> list[dict]:
+    """The reel words spoken in this chunk: its matched range, else the words starting inside it
+    (half-open, so a word starting right at the chunk's end goes to the next chunk)."""
+    if "_idx" in c:
+        return rw[c["_idx"][0]:c["_idx"][1]]
+    return [w for w in rw if c["start"] - 1e-3 <= w["start"] < c["end"] - 1e-3]
 
 
 def split_lines(chunk: dict, max_chars: int, max_lines: int = 2) -> list[dict]:
@@ -194,15 +209,14 @@ def build(cfg, only: str | None = None) -> None:
             chunks = []
             for c in data["chunks"]:
                 if lang == "te":
-                    ws = [{"w": w["word"], "start": w["start"], "end": w["end"]}
-                          for w in rw if c["start"] - 1e-3 <= w["start"] <= c["end"] + 1e-3]
+                    ws = [{"w": w["word"], "start": w["start"], "end": w["end"]} for w in chunk_words_of(c, rw)]
                     ws = ws or timed_words(c["te"], c["start"], c["end"])
                 else:
                     text = c.get(lang, "").strip()
                     if not text:
                         missing.append(f"{lang}#{c['id']}")
                         continue
-                    spans = [(w["start"], w["end"]) for w in rw if c["start"] - 1e-3 <= w["start"] <= c["end"] + 1e-3]
+                    spans = [(w["start"], min(w["end"], c["end"])) for w in chunk_words_of(c, rw)]
                     ws = timed_over(text, spans) if spans else timed_words(text.replace("*", ""), c["start"], c["end"])
                 for w in ws:
                     if lang == "te":
@@ -215,6 +229,7 @@ def build(cfg, only: str | None = None) -> None:
                 _carry_emphasis(chunks, data["chunks"], lang, emph)
             limit = (cfg.at("subtitles.max_chars") or {}).get(lang, MAX_CHARS.get(lang, 18))
             chunks = [p for ch in chunks for p in split_lines(ch, limit, cfg.at("subtitles.max_lines", 2))]
+            chunks.sort(key=lambda ch: ch["start"])  # playback order, even when the plan lists a cold open later
             write_json(sdir / f"{reel['id']}_{lang}.json", {"reel": reel["id"], "lang": lang, "chunks": chunks})
         if missing:
             log.warn("%s: %d chunks have no translation yet (%s...). Those lines will be blank.",

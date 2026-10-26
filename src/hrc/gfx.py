@@ -535,6 +535,8 @@ class GfxRenderer:
                 spr = np.zeros((2, 2, 4), np.uint8)
             cx, cy = self._side_center(spr.shape[1], spr.shape[0], side, inner, upper, hy, hs, top_lim)
             lay.update(mode="side", spr=spr, cx=cx, cy=cy)
+            if not tight and getattr(self, "side_front", False):
+                lay["front"] = True  # wide shot: beside the head, so nothing to hide behind; keep the mic arm off the words
             self.layouts[ev["id"]] = lay
             return lay
         if not self.landscape and ev["anchor"] != "top_split":
@@ -607,7 +609,11 @@ class GfxRenderer:
         return lay
 
     def _close_up(self, hs: float) -> bool:
-        """A tight camera angle: the face is big in the picture (wide shots are ~0.12-0.15 of the height)."""
+        """A tight camera angle: the face is big in the picture (wide shots are ~0.12-0.15 of the height).
+        Only used when gfx.close_up_front is on; off (default), hero words and big counters always sit
+        behind the speaker at shoulder height, the cut-out in front (the v0.8.2 look)."""
+        if not getattr(self, "close_up_front", False):
+            return False
         return not self.fullbleed and hs > self.H * float(getattr(self, "close_up_face", 0.22))
 
     def _bignum_layout(self, ev: dict, lay: dict, hy: float, hs: float) -> dict:
@@ -620,9 +626,13 @@ class GfxRenderer:
         fill = self.hero["color"] if self.hero else self.c1
         glow = None if self.hero else self.c2
         max_w, max_h = W * 0.62, H * 0.34
+        front = self._close_up(hs)
+        if front:  # close-up: the number sits low, under the chin, never over the face
+            max_h = min(max_h, max(H * 0.14, (H * 0.97 - (hy + hs * 0.6)) * 0.72))
         size = int(U * 0.7)
         while size > 24:
-            t = trim(text_sprite(final, size, fill=fill, display=font, glow=glow, stroke_w=0 if self.hero else None), 4)
+            # fit the digits themselves: the glow halo may spill past the box, it is only light
+            t = trim(text_sprite(final, size, fill=fill, display=font, glow=None, stroke_w=0 if self.hero else None), 4)
             if t.shape[1] <= max_w and t.shape[0] <= max_h:
                 break
             size = int(size * 0.93)
@@ -631,8 +641,7 @@ class GfxRenderer:
                                display=True, max_w=int(W * 0.8)), 4) if (ev.get("label") or ev.get("text")) else None
         lab = soft_shadow(lab, max(3, size // 40), 0.7) if lab is not None else np.zeros((2, 2, 4), np.uint8)
         total = num_h + lab.shape[0]
-        front = self._close_up(hs)
-        top = (H * 0.8 - total / 2) if front else (hy + hs * 0.35)
+        top = max(H * 0.8 - total / 2, hy + hs * 0.6) if front else (hy + hs * 0.35)
         top = min(max(top, H * 0.03), H - total - H * 0.03)
         lay.update(mode="bignum", spr=lab, cx=W / 2, num_cy=top + num_h / 2, cy=top + num_h + lab.shape[0] / 2,
                    num_size=size, num_font=font, num_fill=fill, num_glow=glow, final=final, front=front)
@@ -764,6 +773,9 @@ class GfxRenderer:
                 cx, ncy, lcy, sc2 = lay["cx"], lay["num_cy"], lay["cy"], sc
                 if tr:
                     cx, ncy, lcy, sc2 = cx * k_t + ox, ncy * k_t + oy, lcy * k_t + oy, sc * k_t
+                    over = lcy + spr.shape[0] * sc2 / 2 - self.H * 0.985  # a camera push-in must not crop the label
+                    if over > 0:
+                        ncy, lcy = ncy - over, lcy - over
                 put = (lambda *a_: self.front_ops.append(a_)) if lay.get("front") else (lambda *a_: blend(layer, *a_))
                 put(num, cx, ncy, sc2, a)
                 put(spr, cx, lcy, max(0.01, sc2), a * clamp01((local - 0.15) / 0.2))

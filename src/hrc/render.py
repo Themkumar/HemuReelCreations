@@ -434,6 +434,7 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
 
 def style_renderer(cfg, rend) -> None:
     """Graphics style switches shared by the reel render and the Resolve pack."""
+    rend.side_front = bool(cfg.at("gfx.side_in_front", False))
     if cfg.at("gfx.hero_word", False):
         rend.hero = {"font": str(cfg.at("gfx.hero_font", "AlfaSlabOne-400.ttf")),
                      "color": gfx.hex_rgb(cfg.at("gfx.hero_color", "#E8302A")),
@@ -441,6 +442,7 @@ def style_renderer(cfg, rend) -> None:
     rend.fullpic = bool(cfg.at("gfx.fullpic_images", False))
     rend.big_counters = bool(cfg.at("gfx.big_counters", True))
     rend.close_up_face = float(cfg.at("gfx.close_up_face", 0.22))
+    rend.close_up_front = bool(cfg.at("gfx.close_up_front", False))
 
 
 class _NoParticles:

@@ -120,9 +120,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     hold = float(sc.get("hold_gap_sec", 0.6))
     lead = float(sc.get("lead_sec", 0.05))
     all_beats = []
-    for ch in subs["chunks"]:
+    for ch in sorted(subs["chunks"], key=lambda c: c["start"]):
         for b in beats([w for w in ch["words"] if w["w"].strip()], max_w):
             all_beats.append(b)
+    all_beats = merge_short_beats(all_beats, float(ps.get("min_beat_sec", 0.65)), max_w + 1)
     lines = []
     for bi, b in enumerate(all_beats):
         t0 = max(0.0, b[0]["start"] - lead)
@@ -177,6 +178,24 @@ def ref_beats(words: list[dict]) -> list[tuple[list[dict], dict]]:
         out.append((buf, w)); buf = []
     if buf:
         out.append((buf[:-1], buf[-1]))
+    return out
+
+
+def merge_short_beats(beats_: list, min_sec: float = 0.65, max_words: int = 4) -> list:
+    """Glow look: a beat on screen shorter than min_sec ("uh,", "job,") would flash. It rides along
+    as small lead words of the next beat instead (a hero word always keeps its own beat)."""
+    out, carry = [], []
+    for i, b in enumerate(beats_):
+        b = carry + b
+        carry = []
+        nxt = beats_[i + 1] if i + 1 < len(beats_) else None
+        if nxt and not b[-1].get("hero") and nxt[0]["start"] - b[0]["start"] < min_sec \
+                and len(b) + len(nxt) <= max_words:
+            carry = b
+            continue
+        out.append(b)
+    if carry:
+        out.append(carry)
     return out
 
 

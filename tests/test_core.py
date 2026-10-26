@@ -377,3 +377,36 @@ def test_quick_words_are_grouped_so_captions_stay_readable():
              ([], w("*changed*", 1.6, 2.2, hero=True))]
     out = merge_quick_beats(beats, 0.65, 13)
     assert out[0][1]["w"] == "Right then" and len(out) == 3
+
+
+def test_retime_chunks_out_of_order_and_no_shared_boundary_word():
+    from hrc.translate import retime_chunks, chunk_words_of
+    rw = [{"word": "b", "start": 0.0, "end": 0.5}, {"word": "c", "start": 0.5, "end": 1.0},
+          {"word": "a", "start": 1.0, "end": 1.5}]
+    chunks = [{"te": "a", "start": 9.0, "end": 9.1}, {"te": "b", "start": 0.0, "end": 0.5},
+              {"te": "c", "start": 0.4, "end": 0.45}]
+    retime_chunks(chunks, rw)
+    assert (chunks[0]["start"], chunks[0]["end"]) == (1.0, 1.5)
+    assert (chunks[2]["start"], chunks[2]["end"]) == (0.5, 1.0)
+    assert [w["word"] for w in chunk_words_of(chunks[1], rw)] == ["b"]
+    assert [w["word"] for w in chunk_words_of({"te": "x", "start": 0.0, "end": 0.5}, rw)] == ["b"]
+
+
+def test_glow_short_beat_rides_with_next():
+    from hrc.karaoke import merge_short_beats
+    w = lambda t, s, e, h=False: {"w": t, "start": s, "end": e, "hero": h}
+    b = [[w("uh,", 0.0, 0.2)], [w("job,", 0.25, 0.5)], [w("he", 0.6, 0.8), w("said", 0.8, 1.2, True)]]
+    out = merge_short_beats(b, 0.65, 4)
+    assert [[x["w"] for x in y] for y in out] == [["uh,", "job,", "he", "said"]]
+
+
+def test_close_up_front_is_opt_in():
+    """Default (v0.8.2 look): a big counter on a close-up stays behind the speaker; opt-in moves it in front."""
+    from hrc.gfx import GfxRenderer
+    ev = dict(id="c", type="counter", text="REJECTIONS", anchor="beside_head", anim="zoom",
+              t_in=0, t_out=3, value="3000", label=None)
+    head = {"x": 640.0, "y": 180.0, "size": 200.0}
+    for flag in (False, True):
+        r = GfxRenderer([dict(ev)], 1080, 608, 30, ["#FFD400", "#E8252B"])
+        r.big_counters, r.close_up_front = True, flag
+        assert bool(r._layout(ev, head).get("front")) is flag
