@@ -192,11 +192,12 @@ cleaned against the picture (`matte.refine_edges`). Turn it off with `matte.dept
 
 **Where the graphics sit (v0.9).** Big words, hero words and big counters sit **behind you at shoulder height**,
 on wide shots and close-ups alike; the cut-out (you, the mic, the table) stays in front, like the v0.8.2 reels.
-Two switches in `config.yaml` change that:
+These switches in `config.yaml` control that:
 
 | Setting | Default | When on |
 |---|---|---|
 | `gfx.close_up_front` | `false` | On close-up angles, hero words and big counters move in front of you, low over the chest, never over the face |
+| `gfx.readable_behind` | `true` | Before placing a big word or counter, HRC checks your cut-out over the whole time it is on screen and moves it (higher, lower, to the open side, or a little smaller) until at least `gfx.min_visible` (90%) of its letters show. It stays behind you |
 | `gfx.side_in_front` | `false` | On wide shots, a graphic beside your head is drawn in front of the mic arm, so the arm never crosses its letters |
 
 If the mic arm covers a graphic's words in one reel, move that graphic on V4 in Resolve or delete its V5 cut-out clip.
@@ -256,12 +257,13 @@ A reel can switch off its ending with `"outro": false`.
 - Web photos come from free sources (Openverse, Wikimedia). Anything flagged ⚠ in
   `assets/manifest.json` (logos, news, film stills, people) needs your call before posting.
 - Hair edges can shimmer on fast movement; the matte flicker score is in `qa_report.md`.
-- Words behind you on a tight close-up can lose a few letters behind your shoulders. If a word must read in full,
-  turn on `gfx.close_up_front` (or move it on V4 in Resolve).
+- A word behind you may lose up to 10% of its letters behind your head (`gfx.min_visible: 0.9`). If a word must
+  read in full, raise `gfx.min_visible`, or move it on V4 in Resolve.
 
 ## Version history
 
 - **v0.9** 6 ranked reels per episode (about 60 s; complete host-question stories up to 90 s, cold open first); three text looks, 2 reels each (classic, glow, slab); slow cinematic text (soft landings, 2.8 s minimum hold, no flashing words); captions re-timed so lines never overlap, also at cold-open joins; big count-up counters sized by their digits; graphics always behind the speaker (v0.8.2 look), with off-by-default switches for in-front placement; renders two reels at a time.
+- **v0.9.1** Words and counters behind you move to where your body, the mic and the table don't hide them (at least 90% of the letters visible).
 - **v0.8.2** The wide 16:9 shot boxed in the 9:16 frame with headline and logo above; one huge red slab word behind the speaker; one-word colour captions; no reaction cutaways; brightness-only picture.
 - **v0.8** English-only, reference-reel look: full-screen close-up with a cinematic grade, small-white + big-serif captions, second word-timing pass and sound-onset landing for graphics, graphics pinned to the room, 1–2 s listener reaction shots, cut-out only where needed with BiRefNet edges, phone previews.
 - **v0.8.1** Full-screen close-ups with no room above the head: big words, numbers and pictures move to the open side of the frame (tucking a little behind the head) so they stay readable.
