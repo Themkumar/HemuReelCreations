@@ -323,3 +323,36 @@ def test_fullbleed_close_up_keeps_big_words_off_the_face():
     face_left = head["x"] - head["size"] / 2
     overlap = max(0.0, x1 - face_left) / (x1 - x0)
     assert overlap < 0.15 and x0 >= 0 and y0 >= 1920 * 0.07
+
+
+def test_ref_captions_small_lead_over_one_big_word_no_overlap():
+    """v0.8.2 reference captions: function words ride small over the next real word, the starred
+    word is big in red, and beats hand over on the same frame (nothing blinks or overlaps)."""
+    from hrc import karaoke
+
+    class C:
+        def at(self, k, d=None):
+            return {"subtitles": {"style": "punch", "hold_gap_sec": 0.6, "punch": {"ref_style": True}},
+                    "layout.reel": {"caption_gap": 0.03}}.get(k, d)
+    subs = {"lang": "en", "chunks": [
+        {"start": 1.2, "end": 2, "words": [{"w": "on", "start": 1.2, "end": 1.4}, {"w": "my", "start": 1.4, "end": 1.6},
+                                           {"w": "résumé", "start": 1.6, "end": 2.0}]},
+        {"start": 0, "end": 1.1, "words": [{"w": "I", "start": 0, "end": .2}, {"w": "wrote", "start": .2, "end": .6},
+                                           {"w": "'Italian'", "start": .6, "end": 1.1, "hero": True}]}]}
+    ass = karaoke.build_ass(subs, C(), 1080, 1920, [0, 634, 1080, 608], "*3000 rejections* in Italy", 3)
+    big = [l for l in ass.splitlines() if ",Big," in l]
+    assert [l.split("}")[-1] for l in big] == ["WROTE", "ITALIAN", "RÉSUMÉ"]
+    assert "&H002A30E8" in big[1]  # hero word in red
+    t = lambda s: sum(float(x) * m for x, m in zip(s.split(":"), (3600, 60, 1)))
+    spans = [(t(l.split(",")[1]), t(l.split(",")[2])) for l in big]
+    assert all(b[0] >= a[1] - 1e-6 for a, b in zip(spans, spans[1:]))
+    assert any(",Headline," in l for l in ass.splitlines())
+    y_big = int(big[0].split("pos(540,")[1].split(")")[0])
+    assert y_big > 634 + 608  # under the video box
+
+
+def test_hero_word_picks_the_starred_word():
+    from hrc.gfx import hero_word
+    assert hero_word("REJECTION *FOLDER*") == "FOLDER"
+    assert hero_word("PAIN *GONE*") == "GONE"
+    assert hero_word("AND COUNTING") == "COUNTING"

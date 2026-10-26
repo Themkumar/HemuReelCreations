@@ -41,6 +41,11 @@ def font_for(text: str, size: int, weight: int = 900, display=False) -> ImageFon
         if any(lo <= ord(c) <= hi for c in text):
             name = fam
             break
+    if isinstance(display, str) and display.endswith(".ttf") and name == "NotoSans" and (FONT_DIR / display).exists():
+        try:  # a named display face from assets/fonts (e.g. the slab serif for the big background word)
+            return ImageFont.truetype(str(FONT_DIR / display), size, layout_engine=ImageFont.Layout.RAQM)
+        except Exception:
+            return ImageFont.truetype(str(FONT_DIR / display), size)
     if display == "type" and name == "NotoSans" and (FONT_DIR / "SpecialElite-400.ttf").exists():
         name, weight = "SpecialElite", 400  # typewriter face
     elif display and name == "NotoSans" and (FONT_DIR / "Anton-400.ttf").exists():
@@ -60,7 +65,7 @@ def hex_rgb(h: str) -> tuple[int, int, int]:
 
 
 def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), glow=None, max_w: int = 0,
-                display=False, box=None) -> np.ndarray:
+                display=False, box=None, stroke_w: int | None = None) -> np.ndarray:
     font = font_for(text, size, display=display)
     # shrink to fit width
     while max_w and size > 24:
@@ -69,7 +74,7 @@ def text_sprite(text: str, size: int, fill=(255, 255, 255), stroke=(0, 0, 0), gl
             break
         size = int(size * 0.9)
         font = font_for(text, size, display=display)
-    sw = max(2, size // 14)
+    sw = max(2, size // 14) if stroke_w is None else stroke_w
     bbox = font.getbbox(text, stroke_width=sw)
     pad = size // 2
     w, h = bbox[2] - bbox[0] + pad * 2, bbox[3] - bbox[1] + pad * 2
@@ -408,6 +413,9 @@ class GfxRenderer:
         self.cams: list[dict] | None = None  # per-frame head + camera crop [x, y, scale]: pins graphics to the room
         self.switches: list[int] = []  # frames where the picture changes shot (tracking re-anchors there)
         self.fullbleed = False  # portrait close-up filling the frame: big words sit behind the head
+        self.hero = None  # v0.8.2: {"font", "color", "width"}: text moments become ONE huge word behind the speaker
+        self.fullpic = False  # v0.8.2: photo moments fill the whole picture with a stacked block of words over it
+        self.front_full = None
 
     # ---- tracking -----------------------------------------------------------------------------
     def _tracked(self, ev: dict) -> bool:
@@ -485,6 +493,10 @@ class GfxRenderer:
         hx, hy, hs = head["x"], head["y"], max(head["size"], U * 0.12)
         t = ev["type"]
         lay: dict = {"mode": "free"}
+        if self.hero and t == "text":
+            return self._hero_layout(ev, lay, hy, hs)
+        if self.fullpic and t in ("image", "broll") and ev.get("file"):
+            return self._fullpic_layout(ev, lay)
         tight = (self.fullbleed and not self.landscape and ev["anchor"] != "top_split"
                  and (lambda b: b[1] - b[0])(self._band(head)) < U * 0.14)
         if (self.landscape or tight) and t in ("image", "broll", "text", "counter"):
@@ -564,6 +576,42 @@ class GfxRenderer:
         self.layouts[ev["id"]] = lay
         return lay
 
+    def _hero_layout(self, ev: dict, lay: dict, hy: float, hs: float) -> dict:
+        """One huge keyword across the picture at head/shoulder height, drawn behind the speaker (the
+        cut-out keeps the person, mic and table in front), so the face stays clear and the word still reads."""
+        W, H, U = self.W, self.H, self.U
+        word = hero_word(ev["text"])
+        whole = " ".join(ev["text"].replace("*", "").split()).strip(" ,.;:…")
+        if len(word) < 4 and len(whole) <= 14:  # "HI", "2": too short to span the picture, use the whole label
+            word = whole
+        shown = word.upper()
+        max_w, max_h = W * float(self.hero.get("width", 0.94)), H * 0.32
+        size = int(U * 0.9)
+        while True:
+            spr = trim(text_sprite(shown, size, fill=self.hero["color"], stroke_w=0, display=self.hero["font"]), 4)
+            if (spr.shape[1] <= max_w and spr.shape[0] <= max_h) or size < 24:
+                break
+            size = int(size * 0.94)
+        spr = soft_shadow(spr, max(4, size // 22), 0.55)
+        cy = hy + hs * 0.4 + spr.shape[0] / 2  # across the shoulders: the letters start just under the chin
+        cy = min(max(cy, spr.shape[0] / 2 + H * 0.03), H - spr.shape[0] / 2 - H * 0.03)
+        lay.update(mode="hero", spr=spr, cx=W / 2, cy=cy)
+        self.layouts[ev["id"]] = lay
+        return lay
+
+    def _fullpic_layout(self, ev: dict, lay: dict) -> dict:
+        """Photo moment: the picture fills the whole frame (the speaker steps out for a beat) and a
+        stacked block of words sits over it, the key word huge in the accent colour."""
+        W, H, U = self.W, self.H, self.U
+        lay["fullpic"] = backdrop_image(Path(ev.get("original") or ev["file"]), W, H, self.c2)
+        label = (ev.get("label") or "").strip()
+        spr = stack_text(label, int(W * 0.84), int(H * 0.8), U, self.hero["color"] if self.hero else self.c2,
+                         font=self.hero["font"] if self.hero else True, center=True) if label else np.zeros((2, 2, 4), np.uint8)
+        spr = soft_shadow(spr, max(4, U // 60), 0.7)
+        lay.update(mode="fullpic", spr=spr, cx=W / 2, cy=H / 2)
+        self.layouts[ev["id"]] = lay
+        return lay
+
     def _side_room(self, side: int, hx: float, hs: float) -> tuple[float, float, bool]:
         """Width of the open side, measured from the shoulder line (body half-width ~1.3x head size).
         If that is too narrow, use the upper part beside the head instead (above the shoulders).
@@ -615,6 +663,7 @@ class GfxRenderer:
         """Draw onto the background layer. Returns boxes of drawn elements (for QA)."""
         boxes = []
         self.front_ops: list[tuple] = []
+        self.front_full = None
         any_active = bool(self.active(t))
         self.particles.draw(layer, 0.6 if any_active else 0.25)
         for ev in self.active(t):
@@ -645,6 +694,29 @@ class GfxRenderer:
             scale *= 0.97 + 0.03 * p_out
             lay = self._layout(ev, hd)
             spr = lay["spr"]
+            if lay["mode"] == "hero":  # pops in on the word, then breathes very slightly; pinned to the room
+                sc = ease_out_back(clamp01(local / 0.22), 2.2) * (1 + 0.025 * clamp01(local / 2.5))
+                a = alpha * clamp01(local / 0.08)
+                cx, cy, sc2 = lay["cx"], lay["cy"], sc
+                if tr:
+                    cx, cy, sc2 = cx * k_t + ox, cy * k_t + oy, sc * k_t
+                blend(layer, spr, cx, cy, sc2, a)
+                h2, w2 = spr.shape[0] * sc2, spr.shape[1] * sc2
+                boxes.append((ev["id"], cx - w2 / 2, cy - h2 / 2, cx + w2 / 2, cy + h2 / 2))
+                continue
+            if lay["mode"] == "fullpic":  # covers the whole picture, speaker included (drawn in front)
+                a_bd = clamp01(local / 0.12) * clamp01(out_left / 0.12)
+                bd = lay["fullpic"]
+                z = 1.0 + BACKDROP["push_in"] * clamp01(local / max(0.5, ev["t_out"] - ev["t_in"]))
+                bh, bw = bd.shape[:2]
+                ch_, cw_ = int(bh / z), int(bw / z)
+                y0, x0 = (bh - ch_) // 2, (bw - cw_) // 2
+                img = cv2.resize(bd[y0:y0 + ch_, x0:x0 + cw_], (self.W, self.H), interpolation=cv2.INTER_AREA)
+                self.front_full = (img.astype(np.float32), a_bd)
+                sc = ease_out_back(clamp01((local - 0.06) / 0.25), 1.6)
+                self.front_ops.append((spr, lay["cx"], lay["cy"], max(0.01, sc), a_bd))
+                boxes.append((ev["id"], 0, 0, self.W, self.H))
+                continue
             if anim == "typewriter" and lay.get("lines"):
                 spr = self._typed(ev, lay, local)
             elif anim == "glitch" and (local < 0.35 or (local % 1.7) < 0.1):
@@ -769,6 +841,10 @@ class GfxRenderer:
 
     def draw_front(self, frame: np.ndarray) -> None:
         """Elements drawn over the speaker (after the cut-out), e.g. counters in the reel's video box."""
+        if getattr(self, "front_full", None) is not None:
+            img, a = self.front_full
+            frame *= (1 - a)
+            frame += img * a
         for spr, cx, cy, scale, alpha in getattr(self, "front_ops", []):
             blend(frame, spr, cx, cy, scale, alpha)
 
@@ -789,6 +865,35 @@ class GfxRenderer:
 
     def _label(self, ev):
         return self._label_cached(ev["text"])
+
+
+def hero_word(text: str) -> str:
+    """The word that goes huge: the *starred* word(s) of the label, else its longest word."""
+    words = text.split()
+    marked = [w.replace("*", "") for w in words if w.count("*") >= 2]
+    if not marked and "*" in text:  # *TWO WORDS* spanning a space
+        inside = text.split("*")[1::2]
+        marked = [" ".join(inside).strip()] if inside else []
+    pick = " ".join(marked) if marked else max((w.replace("*", "") for w in words), key=len, default="")
+    return pick.strip(" '\"‘’“”,.;:!?…") or pick
+
+
+def soft_shadow(spr: np.ndarray, blur: int, strength: float) -> np.ndarray:
+    """Subtle dark drop shadow under a sprite, so a word reads on bright walls and photos."""
+    pad = blur * 3
+    h, w = spr.shape[:2]
+    out = np.zeros((h + pad * 2, w + pad * 2, 4), np.uint8)
+    sh = np.zeros((h + pad * 2, w + pad * 2), np.float32)
+    off = max(2, blur // 2)
+    sh[pad + off:pad + off + h, pad + off:pad + off + w] = spr[..., 3]
+    sh = cv2.GaussianBlur(sh, (0, 0), blur) * strength
+    out[..., 3] = np.clip(sh, 0, 255).astype(np.uint8)
+    a = spr[..., 3:4].astype(np.float32) / 255.0
+    reg = out[pad:pad + h, pad:pad + w].astype(np.float32)
+    reg[..., :3] = spr[..., :3] * a + reg[..., :3] * (1 - a)
+    reg[..., 3] = np.maximum(reg[..., 3], spr[..., 3])
+    out[pad:pad + h, pad:pad + w] = reg.astype(np.uint8)
+    return out
 
 
 def _stack(top: np.ndarray, bottom: np.ndarray) -> np.ndarray:
@@ -879,7 +984,7 @@ def backdrop_image(path: Path, W: int, H: int, tint=(232, 37, 43), look: dict | 
 
 
 def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43), typewriter: bool = False,
-               meta: bool = False):
+               meta: bool = False, font=True, center: bool = False):
     """Stacked kinetic words: short white words, the key word huge in the accent colour.
     Mark key words with *stars*; otherwise the longest word is the key word."""
     words = label.split()
@@ -913,7 +1018,7 @@ def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43),
             fill = accent if key else (255, 255, 255)
             shown = txt if (not txt.isascii() or typewriter) else txt.upper()
             sprs.append(trim(text_sprite(shown, size, fill=fill, stroke=(0, 0, 0), max_w=max_w,
-                                         display="type" if typewriter else True), size // 10))
+                                         display="type" if typewriter else font), size // 10))
         h = sum(x.shape[0] for x in sprs)
         if h <= max_h or scale < 0.45:
             break
@@ -922,8 +1027,9 @@ def stack_text(label: str, max_w: int, max_h: int, U: int, accent=(232, 37, 43),
     out = np.zeros((h, w, 4), np.uint8)
     y = 0
     info = []
-    for (txt, _), x in zip(lines, sprs):  # left-aligned like the reference edits
-        out[y:y + x.shape[0], :x.shape[1]] = np.maximum(out[y:y + x.shape[0], :x.shape[1]], x)
+    for (txt, _), x in zip(lines, sprs):  # left-aligned like the reference edits (or centred)
+        x0 = (w - x.shape[1]) // 2 if center else 0
+        out[y:y + x.shape[0], x0:x0 + x.shape[1]] = np.maximum(out[y:y + x.shape[0], x0:x0 + x.shape[1]], x)
         info.append({"text": txt, "y0": y, "y1": y + x.shape[0], "w": x.shape[1]})
         y += x.shape[0]
     return (out, info) if meta else out

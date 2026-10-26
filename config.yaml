@@ -35,9 +35,9 @@ reel:
 
 layout:
   reel:
-    fullbleed: true         # v0.8: the speaker's close-up fills the 9:16 frame, like the reference reels
-    video_aspect: 1.4       # width / height of the video box (16:9 source is cropped a little, steady tracking)
-    video_top: 0.25         # top of the video box, as a fraction of the frame height
+    fullbleed: false        # v0.8.2: the full 16:9 wide shot boxed in the middle of the 9:16 frame (true = close-up)
+    video_aspect: 1.778     # width / height of the video box (1.778 = the whole 16:9 picture)
+    video_top: 0.33         # top of the video box, as a fraction of the frame height
     headline_size: 124      # headline above the video (Anton for English, Noto Bold for Indic scripts)
     headline_chars: 20      # wrap the headline onto 2 lines past this many characters
     headline_gap: 0.025
@@ -75,6 +75,14 @@ subtitles:
     glow_color: "#E8D700"
     y: 0.6                   # small words' top, as a fraction of the height (chest level, under the face)
     max_words: 3             # words on screen at once (besides the key word)
+    ref_style: true          # v0.8.2 reference look: 1-2 words at a time, a small lead word over one BIG word,
+                             # the big word's colour changing every beat; sits just under the video box
+    big_font: Anton
+    big_size: 170
+    small_font: Inter SemiBold
+    small_size: 56
+    alt_small_font: Playfair Hero   # every other beat the small word is an italic serif, like the reference
+    colors: ["#FFC928", "#3DDC6A", "#33D6C3", "#E8302A", "#FFFFFF"]
   max_lines: 2               # line 2 appears under line 1 only when a sentence needs it
   max_chars: {te: 15, kn: 15, ta: 14, hi: 19, en: 21}   # longest line per language
   font_size: 100            # at 1080 wide (portrait)
@@ -97,15 +105,15 @@ subtitles:
 
 grade:                      # cinematic look on the podcast picture (darker room, deeper shadows, warm skin)
   enabled: true
-  exposure: -0.18           # stops
-  contrast: 1.15
-  gamma: 1.1                # >1 deepens shadows
-  saturation: 0.9
-  warmth: 0.03
-  vignette: 0.5             # darker edges (0.35 before v0.8)
+  exposure: 0.12            # stops (v0.8.2: brightness lift only, no other colour grading)
+  contrast: 1.0
+  gamma: 1.0
+  saturation: 1.0
+  warmth: 0.0
+  vignette: 0.0
 
 reactions:                  # listener cutaways while the speaker talks (run `hrc reactions` once first)
-  enabled: true
+  enabled: false            # v0.8.2: off; only the master's own camera switches
   length_sec: 1.5           # each one 1-2 s; never more than 2 s
   min_sec: 1.0
   max_sec: 2.0
@@ -149,12 +157,17 @@ gfx:
   track: true               # graphics stay pinned to the room: they follow the reframing pans and zooms
   particles: false          # floating dots behind the speaker (off for the clean reference look)
   default_hold_sec: 2.2
+  hero_word: true           # v0.8.2: text moments = ONE huge keyword across the picture, behind the speaker
+  hero_font: AlfaSlabOne-400.ttf
+  hero_color: "#E8302A"
+  hero_width: 0.94          # share of the picture width the word spans
+  fullpic_images: true      # photo moments fill the whole picture, with a stacked block of words over it
   backdrop:                 # look of photos that replace the wall behind you
     blur: 0                 # 0 = crisp photo; 3-8 = soft, dreamy background
     dim: 0.22               # 0 = full brightness, 0.5 = half
-    desaturate: 0.1         # 0 = full colour, 1 = black and white
-    vignette: 0.3           # darker corners
-    tint: 0.03              # faint brand-red wash
+    desaturate: 0.0         # 0 = full colour, 1 = black and white
+    vignette: 0.0           # darker corners
+    tint: 0.0               # brand-red wash (0 = neutral)
     push_in: 0.05           # slow zoom while the photo is on screen
 
 transitions:
@@ -178,7 +191,7 @@ export:
   bitrate: 12M
   audio_bitrate: 320k
   clean_version: true
-  phone_preview: true       # also a small <reel>_en_phone.mp4 (about 3 MB) to watch on a phone
+  phone_preview: false      # (v0.8.2: off) a small <reel>_en_phone.mp4 (about 3 MB) to watch on a phone
   fcpxml: true
   resolve_pack: true        # layered pack for DaVinci Resolve: every graphic, caption, logo and sound on its own track
   resolve_langs: [en]

@@ -256,7 +256,11 @@ def make_grade(g: dict | None):
     if not g or not g.get("enabled", True):
         return None
     x = np.arange(256, dtype=np.float32) / 255.0
-    x = np.clip(x * (2 ** float(g.get("exposure", -0.15))), 0, 1)
+    gain = 2 ** float(g.get("exposure", -0.15))
+    if gain > 1:  # brighten with a soft highlight roll-off: shadows/mids lift, white never clips
+        x = x * gain / (1 + (gain - 1) * x)
+    else:
+        x = np.clip(x * gain, 0, 1)
     c = float(g.get("contrast", 1.15))
     x = np.clip(0.5 + (x - 0.5) * c, 0, 1)
     x = x ** float(g.get("gamma", 1.08))  # deeper shadows, like a dark studio
@@ -345,6 +349,11 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
                 e["anchor"] = "top_split"
     rend = gfx.GfxRenderer(events, W, H, fps, colors, seed)
     rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and H > W
+    if cfg.at("gfx.hero_word", False):
+        rend.hero = {"font": str(cfg.at("gfx.hero_font", "AlfaSlabOne-400.ttf")),
+                     "color": gfx.hex_rgb(cfg.at("gfx.hero_color", "#E8302A")),
+                     "width": float(cfg.at("gfx.hero_width", 0.94))}
+    rend.fullpic = bool(cfg.at("gfx.fullpic_images", False))
     if not cfg.at("gfx.particles", True):
         rend.particles = _NoParticles()
     if cfg.at("gfx.track", True):
@@ -357,11 +366,16 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     yy, xx = np.ogrid[:H, :W]
     vstr = float((cfg.at("grade") or {}).get("vignette", 0.35))
     vig = (1 - vstr * ((((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2))[..., None].astype(np.float32)
-    logo = _logo(cfg, W, H)
+    logo = _logo(cfg, *(framing[:2] if framing else (W, H)))
     enc = video_encoder_args(cfg, preview) if preview else ["-c:v", "libx264", "-preset", "fast", "-crf", "15", "-pix_fmt", "yuv420p"]
     if framing:
         FW, FH, (bx, by, bw, bh) = framing
         canvas = np.zeros((FH, FW, 3), np.uint8)  # black frame: headline above, captions below
+        if logo is not None:  # channel stamp in the top-right corner of the 9:16 frame, outside the picture
+            cf = canvas.astype(np.float32)
+            m = min(FW, FH) * 0.04
+            gfx.blend(cf, logo, FW - logo.shape[1] * 0.5 - m, logo.shape[0] * 0.5 + m, 1.0, 0.9)
+            canvas = cf.astype(np.uint8)
     wr = _writer(rdir / "clean.mp4", *(framing[:2] if framing else (W, H)), fps, enc)
     mats = matte._frames(mfile, W, H) if has_matte else None
     overlap = 0
@@ -396,7 +410,7 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
             if name != "hard" and abs(i - c) <= transitions.HALF:
                 p = (i - c) / transitions.HALF
                 frame = transitions.apply(name, frame, p, prev_frames.get(c), seed + c)
-        if logo is not None:
+        if logo is not None and not framing:  # framed reel: the logo goes on the black canvas instead
             gfx_frame = frame.astype(np.float32)
             gfx.blend(gfx_frame, logo, W - logo.shape[1] * 0.5 - min(W, H) * 0.03, logo.shape[0] * 0.5 + min(W, H) * 0.03, 1.0, 0.85)
             frame = gfx_frame.astype(np.uint8)
@@ -633,6 +647,11 @@ def render_reel(cfg, reel: dict, words: list[dict], manifest: dict, preview: boo
     events = gfx.build_timeline(reel, rw, manifest, fps, duration, cfg.at("gfx.lead_frames", 1),
                                 cfg.at("gfx.default_hold_sec", 2.2), seed,
                                 onsets=realign.load_onsets(cfg) if cfg.at("gfx.snap_to_onset", True) else None)
+    if cfg.at("gfx.hero_word", False):  # the big background word pops in on its word
+        for e in events:
+            if e["type"] == "text":
+                e["anim"], e["sfx_in"] = "pop", "pop"
+                e["sfx"] = gfx._sfx_for(e)
     lib_path = cfg.dir("cache") / "reactions.json"
     rplan = []
     if fmt != "landscape" and lib_path.exists() and (cfg.at("reactions.enabled", True)):
