@@ -410,3 +410,24 @@ def test_close_up_front_is_opt_in():
         r = GfxRenderer([dict(ev)], 1080, 608, 30, ["#FFD400", "#E8252B"])
         r.big_counters, r.close_up_front = True, flag
         assert bool(r._layout(ev, head).get("front")) is flag
+
+
+def test_big_word_behind_speaker_moves_where_it_reads():
+    """A hero word and a big counter stay behind the speaker but move off the body so the letters read."""
+    import numpy as np
+    from hrc.gfx import GfxRenderer
+    W, H = 1080, 608
+    occ = np.zeros((H // 4, W // 4), np.float32)
+    occ[60:, 60:210] = 1.0     # body + mic: the lower middle of the picture
+    occ[25:60, 110:160] = 1.0  # head
+    head = {"x": 540.0, "y": 170.0, "size": 140.0}
+    for ev in (dict(id="h", type="text", text="*FOLDER*", anchor="behind_head", anim="zoom", t_in=0, t_out=3),
+               dict(id="c", type="counter", text="REJECTIONS", anchor="beside_head", anim="zoom", t_in=0, t_out=3,
+                    value="2783", label="REJECTIONS")):
+        r = GfxRenderer([dict(ev)], W, H, 30, ["#FFD400", "#E8252B"])
+        r.hero = {"font": True, "color": (232, 48, 42), "width": 0.94}
+        r.big_counters = True
+        r.occ = {ev["id"]: occ}
+        lay = r._layout(dict(ev), head)
+        assert not lay.get("front")          # still behind the speaker
+        assert lay["visible"] >= 0.9, lay["visible"]

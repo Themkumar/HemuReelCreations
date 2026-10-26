@@ -402,6 +402,9 @@ class GfxRenderer:
         self.events, self.W, self.H, self.fps = events, W, H, fps
         self.U = min(W, H)  # size unit, so portrait and landscape graphics match
         self.landscape = W > H
+        self.occ: dict = {}        # event id -> how much the cut-out (you, mic, table) covers each spot, 0-1
+        self.occ_scale = 0.25      # the occlusion maps are stored at this fraction of the picture size
+        self.min_visible = 0.9     # share of a big word's letters that must stay visible behind you
         self.c1, self.c2 = hex_rgb(colors[0]), hex_rgb(colors[1] if len(colors) > 1 else colors[0])
         self.particles = Particles(W, H, seed=seed, color=self.c1)
         self.sprites: dict[str, np.ndarray] = {}
@@ -604,9 +607,71 @@ class GfxRenderer:
             cy = H * 0.8          # sits in front, low over the chest, where it reads and the face stays clear
             lay["front"] = True
         cy = min(max(cy, spr.shape[0] / 2 + H * 0.03), H - spr.shape[0] / 2 - H * 0.03)
-        lay.update(mode="hero", spr=spr, cx=W / 2, cy=cy)
+        cx = W / 2
+        if not lay.get("front"):  # behind you: move it where your body and the mic don't hide the letters
+            def make(scale, _size=size):
+                sz = max(12, int(_size * scale))
+                return trim(text_sprite(shown, sz, fill=self.hero["color"], stroke_w=0, display=self.hero["font"]),
+                            4)[..., 3].astype(np.float32) / 255.0
+            spot = self._readable_spot(ev, make, cx, cy)
+            if spot:
+                scale, cx, cy, lay["visible"] = spot
+                if scale < 1.0:
+                    sz = max(12, int(size * scale))
+                    spr = trim(text_sprite(shown, sz, fill=self.hero["color"], stroke_w=0, display=self.hero["font"]), 4)
+                    spr = soft_shadow(spr, max(4, sz // 22), 0.55)
+        lay.update(mode="hero", spr=spr, cx=cx, cy=cy)
         self.layouts[ev["id"]] = lay
         return lay
+
+    def _visible(self, occ: np.ndarray, alpha: np.ndarray, cx: float, cy: float) -> float:
+        """Share of a sprite's ink (alpha at occ scale) left visible at (cx, cy): not under the cut-out
+        and not off the picture."""
+        s = self.occ_scale
+        h, w = alpha.shape
+        x0, y0 = int(round(cx * s - w / 2)), int(round(cy * s - h / 2))
+        oh, ow = occ.shape
+        ox0, oy0, ox1, oy1 = max(0, x0), max(0, y0), min(ow, x0 + w), min(oh, y0 + h)
+        tot = float(alpha.sum()) or 1.0
+        if ox1 <= ox0 or oy1 <= oy0:
+            return 0.0
+        a = alpha[oy0 - y0:oy1 - y0, ox0 - x0:ox1 - x0]
+        return float((a * (1.0 - occ[oy0:oy1, ox0:ox1])).sum()) / tot
+
+    def _readable_spot(self, ev: dict, make, cx0: float, cy0: float):
+        """Find where a big word behind the speaker stays readable. `make(scale)` returns the sprite's
+        alpha (0-1, full size) at that scale. Tries the default spot first, then other heights, the open
+        sides and slightly smaller sizes, and keeps the biggest one that shows at least min_visible of the
+        letters, as close to the default spot as possible. Returns (scale, cx, cy, visible) or None
+        when there is no cut-out for this graphic."""
+        occ = self.occ.get(ev["id"])
+        if occ is None:
+            return None
+        W, H, s = self.W, self.H, self.occ_scale
+        best_any = None
+        for scale in (1.0, 0.88, 0.76, 0.64, 0.54):
+            alpha = make(scale)
+            if alpha is None or not alpha.size:
+                continue
+            fh, fw = alpha.shape
+            small = cv2.resize(alpha, (max(1, int(fw * s)), max(1, int(fh * s))), interpolation=cv2.INTER_AREA)
+            m = H * 0.02
+            ys = np.linspace(fh / 2 + m, H - fh / 2 - m, 15) if H - fh > 2 * m else np.array([H / 2])
+            xs = [cx0] + ([W * 0.3, W * 0.7, W * 0.2, W * 0.8] if fw < W * 0.7 else [])
+            ok = []
+            for cx in xs:
+                cx = min(max(cx, fw / 2 + W * 0.02), W - fw / 2 - W * 0.02) if fw < W * 0.96 else W / 2
+                for cy in [cy0] + list(ys):
+                    v = self._visible(occ, small, cx, cy)
+                    score = v * scale ** 0.5
+                    if best_any is None or score > best_any[0]:
+                        best_any = (score, scale, cx, cy, v)
+                    if v >= self.min_visible:
+                        ok.append((abs(cy - cy0) / H + 0.5 * abs(cx - cx0) / W, cx, cy, v))
+            if ok:
+                _, cx, cy, v = min(ok)
+                return scale, cx, cy, v
+        return best_any[1:] if best_any else None
 
     def _close_up(self, hs: float) -> bool:
         """A tight camera angle: the face is big in the picture (wide shots are ~0.12-0.15 of the height).
@@ -629,21 +694,42 @@ class GfxRenderer:
         front = self._close_up(hs)
         if front:  # close-up: the number sits low, under the chin, never over the face
             max_h = min(max_h, max(H * 0.14, (H * 0.97 - (hy + hs * 0.6)) * 0.72))
-        size = int(U * 0.7)
-        while size > 24:
-            # fit the digits themselves: the glow halo may spill past the box, it is only light
-            t = trim(text_sprite(final, size, fill=fill, display=font, glow=None, stroke_w=0 if self.hero else None), 4)
-            if t.shape[1] <= max_w and t.shape[0] <= max_h:
-                break
-            size = int(size * 0.93)
+        label = (ev.get("label") or ev.get("text") or "").replace("*", "").upper()
+
+        def build(scale):
+            size = int(U * 0.7)
+            while size > 24:
+                # fit the digits themselves: the glow halo may spill past the box, it is only light
+                t = trim(text_sprite(final, size, fill=fill, display=font, glow=None, stroke_w=0 if self.hero else None), 4)
+                if t.shape[1] <= max_w * scale and t.shape[0] <= max_h * scale:
+                    break
+                size = int(size * 0.93)
+            lab = trim(text_sprite(label, max(24, int(size * 0.26)), display=True, max_w=int(W * 0.8)), 4) if label else None
+            lab = soft_shadow(lab, max(3, size // 40), 0.7) if lab is not None else np.zeros((2, 2, 4), np.uint8)
+            return size, t, lab
+
+        def group_alpha(t, lab):  # the number over its label, as one block (for the readability check)
+            w = max(t.shape[1], lab.shape[1])
+            g = np.zeros((t.shape[0] + lab.shape[0], w), np.float32)
+            g[:t.shape[0], (w - t.shape[1]) // 2:(w - t.shape[1]) // 2 + t.shape[1]] = t[..., 3] / 255.0
+            g[t.shape[0]:, (w - lab.shape[1]) // 2:(w - lab.shape[1]) // 2 + lab.shape[1]] = lab[..., 3] / 255.0
+            return g
+
+        size, t, lab = build(1.0)
         num_h = t.shape[0]
-        lab = trim(text_sprite((ev.get("label") or ev.get("text") or "").replace("*", "").upper(), max(24, int(size * 0.26)),
-                               display=True, max_w=int(W * 0.8)), 4) if (ev.get("label") or ev.get("text")) else None
-        lab = soft_shadow(lab, max(3, size // 40), 0.7) if lab is not None else np.zeros((2, 2, 4), np.uint8)
         total = num_h + lab.shape[0]
         top = max(H * 0.8 - total / 2, hy + hs * 0.6) if front else (hy + hs * 0.35)
         top = min(max(top, H * 0.03), H - total - H * 0.03)
-        lay.update(mode="bignum", spr=lab, cx=W / 2, num_cy=top + num_h / 2, cy=top + num_h + lab.shape[0] / 2,
+        cx = W / 2
+        if not front:  # behind you: move it where your body and the mic don't hide the digits
+            spot = self._readable_spot(ev, lambda sc: group_alpha(*build(sc)[1:]), cx, top + total / 2)
+            if spot:
+                scale, cx, gcy, lay["visible"] = spot
+                size, t, lab = build(scale)
+                num_h = t.shape[0]
+                total = num_h + lab.shape[0]
+                top = gcy - total / 2
+        lay.update(mode="bignum", spr=lab, cx=cx, num_cy=top + num_h / 2, cy=top + num_h + lab.shape[0] / 2,
                    num_size=size, num_font=font, num_fill=fill, num_glow=glow, final=final, front=front)
         self.layouts[ev["id"]] = lay
         return lay

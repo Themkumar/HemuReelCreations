@@ -9,6 +9,7 @@ Per reel this writes, in renders/<reel>/:
 """
 from __future__ import annotations
 
+import json
 import math
 import subprocess
 from pathlib import Path
@@ -337,6 +338,57 @@ def _crop(fr: np.ndarray, box: dict, z: float, W: int, H: int, heads: list) -> n
     return np.ascontiguousarray(out)
 
 
+def occlusion_maps(cfg, rdir: Path, W: int, H: int, fps: int, events: list[dict], scale: float = 0.25) -> dict:
+    """For every big word and counter: how much of each spot of the picture the cut-out (you, the mic,
+    the table) covers while it is on screen (0 = free, 1 = always covered). Lets a word sit behind you
+    and still read. Cached in occlusion.npz next to the matte."""
+    if not cfg.at("gfx.readable_behind", True):
+        return {}
+    want = [e for e in events if e["type"] in ("text", "counter")]
+    mfile = rdir / "matte.mp4"
+    if not want or not mfile.exists():
+        return {}
+    key = [[e["id"], round(e["t_in"], 3), round(e["t_out"], 3)] for e in want]
+    cache = rdir / "occlusion.npz"
+    if cache.exists() and cache.stat().st_mtime >= mfile.stat().st_mtime:
+        try:
+            z = np.load(cache, allow_pickle=False)
+            if json.loads(str(z["key"])) == key:
+                return {k: z[k] for k in z.files if k != "key"}
+        except Exception:  # noqa: BLE001 - a broken cache is simply rebuilt
+            pass
+    sw, sh = max(1, int(W * scale)), max(1, int(H * scale))
+    acc = {e["id"]: [np.zeros((sh, sw), np.float32), np.zeros((sh, sw), np.float32), 0] for e in want}
+    last = max(e["t_out"] for e in want)
+    for i, m in enumerate(matte._frames(mfile, W, H)):
+        t = i / fps
+        if t > last:
+            break
+        live = [e for e in want if e["t_in"] <= t < e["t_out"]]
+        if not live:
+            continue
+        small = cv2.resize(m[..., 0], (sw, sh), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+        for e in live:
+            a = acc[e["id"]]
+            a[0] += small
+            np.maximum(a[1], small, out=a[1])
+            a[2] += 1
+    out = {}
+    for eid, (tot, mx, n) in acc.items():
+        if n:  # mostly the average, but a spot covered for a moment still counts
+            out[eid] = np.clip(0.6 * tot / n + 0.4 * mx, 0, 1).astype(np.float32)
+    try:
+        np.savez_compressed(cache, key=json.dumps(key), **out)
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def attach_occlusion(cfg, rend, occ: dict) -> None:
+    rend.occ = occ or {}
+    rend.min_visible = float(cfg.at("gfx.min_visible", 0.9))
+
+
 def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: list[dict], has_matte: bool,
               preview: bool, seed: int, framing=None) -> dict:
     plate = rdir / "plate.mp4"
@@ -350,6 +402,8 @@ def composite(cfg, reel: dict, rdir: Path, W: int, H: int, fps: int, events: lis
     rend = gfx.GfxRenderer(events, W, H, fps, colors, seed)
     rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and H > W
     style_renderer(cfg, rend)
+    if has_matte:
+        attach_occlusion(cfg, rend, occlusion_maps(cfg, rdir, W, H, fps, events))
     if not cfg.at("gfx.particles", True):
         rend.particles = _NoParticles()
     if cfg.at("gfx.track", True):

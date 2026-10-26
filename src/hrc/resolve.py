@@ -118,6 +118,8 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
     heads = read_json(rdir / "heads.json")
     has_matte = (rdir / "matte.mp4").exists() and info.get("matte", {}).get("engine", "none") != "none"
     clips = []
+    from .render import occlusion_maps
+    occ = occlusion_maps(cfg, rdir, bw, bh, fps, info.get("gfx", [])) if has_matte else {}
     for ev in info.get("gfx", []):
         f0, f1 = int(round(ev["t_in"] * fps)), int(round(ev["t_out"] * fps))
         if f1 <= f0:
@@ -125,8 +127,9 @@ def build_gfx_layers(cfg, rdir: Path, info: dict, media: Path, fps: int) -> list
         rend = gfx.GfxRenderer([ev], bw, bh, fps, colors, info.get("seed", 0))
         rend.particles = _NoParticles()
         rend.fullbleed = bool((cfg.at("layout.reel", {}) or {}).get("fullbleed")) and bh > bw
-        from .render import style_renderer
+        from .render import attach_occlusion, style_renderer
         style_renderer(cfg, rend)
+        attach_occlusion(cfg, rend, occ)  # same readable spot behind the speaker as the finished render
         if cfg.at("gfx.track", True):  # same pinned-to-the-room movement as the finished render
             rend.cams = heads
             cj = read_json(rdir / "cuts.json") if (rdir / "cuts.json").exists() else {}

@@ -160,6 +160,8 @@ gfx:
   particles: false          # floating dots behind the speaker (off for the clean reference look)
   default_hold_sec: 2.8       # v0.9: words stay up long enough to read (cinematic)
   cinematic: true           # slow, soft landings (no glitch/snap animations)
+  readable_behind: true     # v0.9.1: big words and counters stay behind you, placed where you, the mic and the table don't hide them
+  min_visible: 0.9          # ...showing at least this share of the letters (moves or shrinks the word a little if needed)
   side_in_front: false      # keep false: on wide shots words beside the head stay behind the mic arm too
   close_up_front: false     # keep false: big words and counters always sit BEHIND you (true = in front on close-ups)
   big_counters: true        # v0.9: counters are a big count-up number (hero font) with a small label
