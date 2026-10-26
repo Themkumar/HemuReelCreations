@@ -13,9 +13,10 @@ body = markdown.markdown(md, extensions=["tables", "fenced_code"])
 def inline(m):
     src = m.group(1)
     p = root / src
-    if p.suffix == ".svg" and p.exists():
+    mime = {".svg": "image/svg+xml", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}.get(p.suffix)
+    if mime and p.exists():
         data = base64.b64encode(p.read_bytes()).decode()
-        return f'src="data:image/svg+xml;base64,{data}"'
+        return f'src="data:{mime};base64,{data}"'
     return m.group(0)
 
 
@@ -34,7 +35,8 @@ th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-ali
 th{background:var(--code)}tr:nth-child(even) td{background:color-mix(in srgb,var(--code) 45%,transparent)}
 code{background:var(--code);padding:1px 6px;border-radius:5px;font-size:.92em}
 pre{background:var(--code);padding:14px 16px;border-radius:10px;overflow-x:auto}pre code{padding:0;background:none}
-td:first-child{font-weight:700;white-space:nowrap}
+td:first-child{font-weight:700}
+td img{width:100%;max-width:280px;margin:4px auto;border-radius:10px}
 hr{border:0;border-top:1px solid var(--line);margin:36px 0}
 @media print{body{font-size:12px}h2{break-before:auto}img{max-width:80%}}
 """

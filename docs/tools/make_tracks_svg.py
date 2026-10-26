@@ -6,9 +6,9 @@ G = [(390, 60), (540, 70), (700, 60), (800, 50)]          # graphic times
 P = [(540, 70)]                                           # the photo moment
 rows = [
     ("V11+", "Graphic words as text (off)", "turn on: words, font, colour, any animation", "#FFD400", G, 0.3),
-    ("V10", "Karaoke captions", "captions_te.mov (transparent) + .srt", "#FFD400", [(X0, X1 - X0)], 0.85),
+    ("V10", "Karaoke captions", "captions_en.mov (transparent) + .srt", "#FFD400", [(X0, X1 - X0)], 0.85),
     ("V9", "Headline as text (off)", "turn on to edit words, font, colour", "#E8252B", [(X0, X1 - X0)], 0.35),
-    ("V8", "Headline picture", "headline_te.png", "#E8252B", [(X0, X1 - X0)], 0.85),
+    ("V8", "Headline picture", "headline_en.png", "#E8252B", [(X0, X1 - X0)], 0.85),
     ("V7", "Corner logo", "brand/logo.png", "#FFFFFF", [(X0, X1 - X0)], 0.85),
     ("V6", "Graphic parts in front", "gNN_front.mov (counters)", "#8250DF", [G[0], G[3]], 0.85),
     ("V5", "Cut-out: you + mic, cups...", "gNN_person.mov (keeps graphics behind)", "#2EA043", G, 0.85),
