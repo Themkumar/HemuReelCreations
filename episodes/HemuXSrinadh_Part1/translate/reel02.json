@@ -1,0 +1,394 @@
+{
+ "reel": "reel02",
+ "languages": [
+  "en"
+ ],
+ "note": "Fill each language with a natural spoken translation of 'te'. Keep names/brands.",
+ "chunks": [
+  {
+   "id": 0,
+   "start": 0.0,
+   "end": 2.058,
+   "te": "నాకు ఆడ్స్ అన్ని నాకు అగైన్స్ట్ గానే",
+   "en": "All the *odds* were against"
+  },
+  {
+   "id": 1,
+   "start": 2.08,
+   "end": 2.942,
+   "te": "ఉన్నాయి. హ్",
+   "en": "me."
+  },
+  {
+   "id": 2,
+   "start": 2.96,
+   "end": 5.086,
+   "te": "నాది అయిపోయింది ఇంకా నేను ఒక సిక్స్",
+   "en": "I thought I'm done, in six"
+  },
+  {
+   "id": 3,
+   "start": 5.119,
+   "end": 6.465,
+   "te": "మంత్స్ లో ఇండియాకి వెళ్ళిపోతాను ఇంకా",
+   "en": "months I'll go back to *India*,"
+  },
+  {
+   "id": 4,
+   "start": 6.48,
+   "end": 8.023,
+   "te": "ఇక్కడ ఏం లేదు అన్నప్పుడు",
+   "en": "nothing's left here."
+  },
+  {
+   "id": 5,
+   "start": 8.1,
+   "end": 10.611,
+   "te": "వన్ గుడ్ డే ఈ కాన్సెప్ట్ ఏంది",
+   "en": "What is this 'one good day' concept?"
+  },
+  {
+   "id": 6,
+   "start": 10.644,
+   "end": 11.285,
+   "te": "అసలు ఈ",
+   "en": "I mean, this"
+  },
+  {
+   "id": 7,
+   "start": 11.3,
+   "end": 13.36,
+   "te": "కాన్సెప్ట్ నీకు నీకు ఎలా ఎక్స్పీరియన్స్",
+   "en": "concept, how did you"
+  },
+  {
+   "id": 8,
+   "start": 13.36,
+   "end": 14.499,
+   "te": "అయింది ఆ వన్ గుడ్ డే",
+   "en": "experience that one *good day*?"
+  },
+  {
+   "id": 9,
+   "start": 14.499,
+   "end": 17.72,
+   "te": "అది ఇది ఈ 3000 రిజెక్షన్స్ మెయిల్స్",
+   "en": "It's these *3000* rejection mails"
+  },
+  {
+   "id": 10,
+   "start": 17.72,
+   "end": 21.03,
+   "te": "ఏదైతే నేను చెప్పానో ఆ ప్రాసెస్ లో",
+   "en": "I told you about. In that process,"
+  },
+  {
+   "id": 11,
+   "start": 21.03,
+   "end": 21.54,
+   "te": "ఆ",
+   "en": "uh,"
+  },
+  {
+   "id": 12,
+   "start": 21.54,
+   "end": 23.134,
+   "te": "నువ్వు అన్నట్టు నా లైఫ్ కూడా కొంచెం",
+   "en": "like you said, my life also went a bit"
+  },
+  {
+   "id": 13,
+   "start": 23.157,
+   "end": 23.362,
+   "te": "డౌన్",
+   "en": "down,"
+  },
+  {
+   "id": 14,
+   "start": 23.38,
+   "end": 25.274,
+   "te": "ట్రాజెక్టరీ లో వెళ్ళింది ఒక ఫస్ట్ సిక్స్",
+   "en": "on a downward *trajectory*. The first six"
+  },
+  {
+   "id": 15,
+   "start": 25.3,
+   "end": 27.194,
+   "te": "మంత్స్ అప్పుడప్పుడే గ్రాడ్యుయేషన్ అయింది",
+   "en": "months, I'd just graduated,"
+  },
+  {
+   "id": 16,
+   "start": 27.219,
+   "end": 29.013,
+   "te": "జాబ్స్ దొరకట్లేదు ఇవన్నీ రిజెక్షన్స్",
+   "en": "no jobs, all these rejections"
+  },
+  {
+   "id": 17,
+   "start": 29.06,
+   "end": 31.252,
+   "te": "వస్తున్నాయి ఏం చేయాలో అర్థం కావట్లేదు.",
+   "en": "coming in. I didn't know what to do."
+  },
+  {
+   "id": 18,
+   "start": 31.339,
+   "end": 33.098,
+   "te": "అప్పుడు దేర్ వాస్ వన్ గై హూ",
+   "en": "Then there was one guy who"
+  },
+  {
+   "id": 19,
+   "start": 33.113,
+   "end": 33.784,
+   "te": "ఇస్ కాల్డ్",
+   "en": "was called"
+  },
+  {
+   "id": 20,
+   "start": 33.819,
+   "end": 35.197,
+   "te": "పేత్రో సకార్దో",
+   "en": "Pietro *Sacardo*"
+  },
+  {
+   "id": 21,
+   "start": 35.26,
+   "end": 36.739,
+   "te": "ఇటాలియన్ గాయ్",
+   "en": "an Italian guy"
+  },
+  {
+   "id": 22,
+   "start": 36.78,
+   "end": 39.365,
+   "te": "వాడు నన్ను ఇటాలియన్ సరిగ్గా రాకపోయినా",
+   "en": "Even though my Italian wasn't good"
+  },
+  {
+   "id": 23,
+   "start": 39.42,
+   "end": 42.3,
+   "te": "సరే ఆ నీకు ఇంగ్లీష్ వచ్చు కదా",
+   "en": "he said, it's fine, you know *English*, right?"
+  },
+  {
+   "id": 24,
+   "start": 42.332,
+   "end": 42.95,
+   "te": "నీ దగ్గర",
+   "en": "You have"
+  },
+  {
+   "id": 25,
+   "start": 42.95,
+   "end": 45.74,
+   "te": "స్కిల్స్ ఉన్నాయి. నీకు నేను ప్రాజెక్ట్",
+   "en": "the skills. I'll give you a project"
+  },
+  {
+   "id": 26,
+   "start": 45.74,
+   "end": 47.705,
+   "te": "అసైన్ చేస్తా నీ స్కిల్స్ నేను నమ్ముతా",
+   "en": "I believe in your *skills*"
+  },
+  {
+   "id": 27,
+   "start": 47.74,
+   "end": 48.859,
+   "te": "అని చెప్పి టూ త్రీ రౌండ్స్ ఆఫ్",
+   "en": "he said. After two, three rounds of"
+  },
+  {
+   "id": 28,
+   "start": 48.859,
+   "end": 50.798,
+   "te": "ఇంటర్వ్యూస్ తర్వాత",
+   "en": "interviews"
+  },
+  {
+   "id": 29,
+   "start": 50.859,
+   "end": 53.542,
+   "te": "అతను నాకు ఎంత హెల్ప్ చేశడు అంటే",
+   "en": "he helped me so much."
+  },
+  {
+   "id": 30,
+   "start": 53.574,
+   "end": 53.948,
+   "te": "నాది",
+   "en": "My"
+  },
+  {
+   "id": 31,
+   "start": 53.98,
+   "end": 56.706,
+   "te": "వీసా కొంచెం అటు ఇటుగా ఉండేది అది",
+   "en": "visa was a bit *shaky*"
+  },
+  {
+   "id": 32,
+   "start": 56.734,
+   "end": 57.218,
+   "te": "పిఆర్",
+   "en": "PR,"
+  },
+  {
+   "id": 33,
+   "start": 57.26,
+   "end": 58.116,
+   "te": "అప్పటికీ లేదు",
+   "en": "I didn't have yet"
+  },
+  {
+   "id": 34,
+   "start": 58.14,
+   "end": 60.643,
+   "te": "సో పర్మిట్స్ ఇంకా రాలేదు",
+   "en": "the permits hadn't come"
+  },
+  {
+   "id": 35,
+   "start": 60.7,
+   "end": 62.611,
+   "te": "ఇట్ వాస్ వన్ పర్సన్ దట్ సెడ్",
+   "en": "Right then, it was one person who said"
+  },
+  {
+   "id": 36,
+   "start": 62.637,
+   "end": 63.25,
+   "te": "యు ఆర్ ద",
+   "en": "you are the"
+  },
+  {
+   "id": 37,
+   "start": 63.25,
+   "end": 65.16,
+   "te": "బెస్ట్ సూటెడ్ గై ఫర్ దిస్ జాబ్",
+   "en": "best suited guy for this *job*"
+  },
+  {
+   "id": 38,
+   "start": 65.16,
+   "end": 65.381,
+   "te": "ఓకే",
+   "en": "Okay"
+  },
+  {
+   "id": 39,
+   "start": 65.4,
+   "end": 67.145,
+   "te": "అక్కడి నుంచి మొత్తం చేంజ్ అయిపోయింది కదా",
+   "en": "From there, everything *changed*"
+  },
+  {
+   "id": 40,
+   "start": 67.16,
+   "end": 68.95,
+   "te": "అక్కడి నుంచి నాకు జాబ్ వచ్చింది ఆ",
+   "en": "From there I got the job. For that"
+  },
+  {
+   "id": 41,
+   "start": 68.95,
+   "end": 69.16,
+   "te": "జాబ్",
+   "en": "job,"
+  },
+  {
+   "id": 42,
+   "start": 69.16,
+   "end": 72.246,
+   "te": "కోసం నేనఎంత ఫైట్ చేశానో దానికి ఆయన",
+   "en": "however hard I fought, he"
+  },
+  {
+   "id": 43,
+   "start": 72.28,
+   "end": 74.49,
+   "te": "ట్రిపుల్ ఫైట్ చేశాడు నాకోసం లాయర్స్",
+   "en": "fought *three times* harder for me. He went"
+  },
+  {
+   "id": 44,
+   "start": 74.49,
+   "end": 75.71,
+   "te": "దగ్గరికి వెళ్ళాడు.",
+   "en": "to the lawyers."
+  },
+  {
+   "id": 45,
+   "start": 75.769,
+   "end": 77.611,
+   "te": "సో అవన్నీ అగైన్స్ట్ గా ఉన్నా కూడా",
+   "en": "So even though all of it was against me,"
+  },
+  {
+   "id": 46,
+   "start": 77.632,
+   "end": 77.906,
+   "te": "అతను",
+   "en": "he,"
+  },
+  {
+   "id": 47,
+   "start": 77.93,
+   "end": 79.805,
+   "te": "దేర్ వాస్ వన్ గై సో అలా",
+   "en": "there was one guy. So like that,"
+  },
+  {
+   "id": 48,
+   "start": 79.831,
+   "end": 80.859,
+   "te": "ఆల్ ఇట్ టుక్",
+   "en": "all it took"
+  },
+  {
+   "id": 49,
+   "start": 80.89,
+   "end": 82.148,
+   "te": "వాస్ వన్ గై టు సే దిస్",
+   "en": "was one guy to say this"
+  },
+  {
+   "id": 50,
+   "start": 82.148,
+   "end": 83.05,
+   "te": "గై ఇస్ ద బెస్ట్",
+   "en": "guy is the best"
+  },
+  {
+   "id": 51,
+   "start": 83.05,
+   "end": 85.489,
+   "te": "సూటెడ్ పర్సన్ ఫర్ దిస్ జాబ్ అండ్",
+   "en": "suited person for this job, and"
+  },
+  {
+   "id": 52,
+   "start": 85.518,
+   "end": 86.061,
+   "te": "హి ఫాట్",
+   "en": "he *fought*"
+  },
+  {
+   "id": 53,
+   "start": 86.09,
+   "end": 87.657,
+   "te": "ఫర్ మీ అండ్ హి మేడ్ షూర్",
+   "en": "for me and he made sure"
+  },
+  {
+   "id": 54,
+   "start": 87.682,
+   "end": 88.704,
+   "te": "ఐ గాట్ దట్ జాబ్",
+   "en": "I got that *job*."
+  }
+ ]
+}

@@ -1,0 +1,345 @@
+{
+ "reel": "reel04",
+ "languages": [
+  "en"
+ ],
+ "note": "Fill each language with a natural spoken translation of 'te'. Keep names/brands.",
+ "chunks": [
+  {
+   "id": 0,
+   "start": 0.0,
+   "end": 1.388,
+   "te": "ఇటలీ వాస్ ఏ మిస్టేక్ బట్ ఇట్",
+   "en": "Italy was a mistake, but it"
+  },
+  {
+   "id": 1,
+   "start": 1.404,
+   "end": 1.739,
+   "te": "వాస్ ఏ",
+   "en": "was a"
+  },
+  {
+   "id": 2,
+   "start": 1.739,
+   "end": 4.659,
+   "te": "బ్యూటిఫుల్ మిస్టేక్ అని",
+   "en": "beautiful *mistake*"
+  },
+  {
+   "id": 3,
+   "start": 4.7,
+   "end": 6.803,
+   "te": "ఎందుకంటే గ్రేట్ ఆన్సర్",
+   "en": "because... Great answer!"
+  },
+  {
+   "id": 4,
+   "start": 6.859,
+   "end": 7.374,
+   "te": "ఎగజక్ట్లీ",
+   "en": "Exactly"
+  },
+  {
+   "id": 5,
+   "start": 7.4,
+   "end": 9.526,
+   "te": "సో ఐ వాంట్ టు నో బిహైండ్",
+   "en": "So I want to know what's behind"
+  },
+  {
+   "id": 6,
+   "start": 9.582,
+   "end": 10.538,
+   "te": "ది సక్సెస్",
+   "en": "the *success*"
+  },
+  {
+   "id": 7,
+   "start": 10.599,
+   "end": 13.2,
+   "te": "ఫస్ట్ సో హౌ కెన్ యు డిస్క్రైబ్",
+   "en": "first. So how would you describe"
+  },
+  {
+   "id": 8,
+   "start": 13.2,
+   "end": 16.0,
+   "te": "యువర్సెల్ఫ్ సో అందరూ వచ్చినట్టే స్టడీస్",
+   "en": "yourself? Like everyone, for studies"
+  },
+  {
+   "id": 9,
+   "start": 16.0,
+   "end": 17.99,
+   "te": "కి నేను కూడా వచ్చాను 2019 లో",
+   "en": "I came too, in *2019*,"
+  },
+  {
+   "id": 10,
+   "start": 17.99,
+   "end": 19.399,
+   "te": "ఇటలీకి విత్",
+   "en": "to Italy, with"
+  },
+  {
+   "id": 11,
+   "start": 19.399,
+   "end": 21.612,
+   "te": "ఏ లాట్ ఆఫ్ డ్రీమ్స్ బట్ ఇది",
+   "en": "a lot of *dreams*, but this was"
+  },
+  {
+   "id": 12,
+   "start": 21.638,
+   "end": 22.342,
+   "te": "ఆన్ ఏ వే",
+   "en": "in a way"
+  },
+  {
+   "id": 13,
+   "start": 22.36,
+   "end": 25.14,
+   "te": "యక్సిడెంటల్ అరైవల్ ఇంటు ఇటలీ ఐ వాస్",
+   "en": "an *accidental* arrival into Italy. I was"
+  },
+  {
+   "id": 14,
+   "start": 25.14,
+   "end": 27.2,
+   "te": "ప్లానింగ్ ఫర్ జర్మనీ ఇంతకుముందు",
+   "en": "planning for *Germany* before."
+  },
+  {
+   "id": 15,
+   "start": 27.2,
+   "end": 28.983,
+   "te": "సో ఫస్ట్ అది ఉండే నాకు జర్మనీ",
+   "en": "So first, my plan was *Germany*."
+  },
+  {
+   "id": 16,
+   "start": 29.019,
+   "end": 29.65,
+   "te": "కోసం అప్లై",
+   "en": "I applied for it,"
+  },
+  {
+   "id": 17,
+   "start": 29.68,
+   "end": 31.833,
+   "te": "చేశ జర్మనీ కోసం వీసా అప్లై చేసా",
+   "en": "applied for a German visa,"
+  },
+  {
+   "id": 18,
+   "start": 31.859,
+   "end": 32.283,
+   "te": "అక్కడ",
+   "en": "researched"
+  },
+  {
+   "id": 19,
+   "start": 32.32,
+   "end": 34.284,
+   "te": "కాలేజెస్ రీసెర్చ్ చేసా అడ్మిట్ వచ్చింది",
+   "en": "colleges there, got an admit."
+  },
+  {
+   "id": 20,
+   "start": 34.32,
+   "end": 36.6,
+   "te": "ఎవ్రీథింగ్ వాస్ గోయింగ్ వెరీ స్మూత్",
+   "en": "Everything was going very smooth."
+  },
+  {
+   "id": 21,
+   "start": 36.62,
+   "end": 39.47,
+   "te": "అయితే సడన్ గా ఏమైందంటే",
+   "en": "But suddenly, what happened was,"
+  },
+  {
+   "id": 22,
+   "start": 39.47,
+   "end": 40.539,
+   "te": "జర్మనీలో",
+   "en": "in Germany,"
+  },
+  {
+   "id": 23,
+   "start": 40.539,
+   "end": 43.34,
+   "te": "కొన్ని వీసా రూల్స్ నేను ఫాలో చేయకపోవడం",
+   "en": "I didn't follow some visa rules,"
+  },
+  {
+   "id": 24,
+   "start": 43.34,
+   "end": 45.32,
+   "te": "వల్ల నా వీసా రిజెక్ట్ అయింది.",
+   "en": "so my visa got *rejected*."
+  },
+  {
+   "id": 25,
+   "start": 45.32,
+   "end": 45.63,
+   "te": "ఓకే",
+   "en": "Okay"
+  },
+  {
+   "id": 26,
+   "start": 45.63,
+   "end": 47.03,
+   "te": "డ్యూ టు సం రీసన్స్",
+   "en": "Due to some reasons"
+  },
+  {
+   "id": 27,
+   "start": 47.03,
+   "end": 47.33,
+   "te": "ఓకే",
+   "en": "Okay"
+  },
+  {
+   "id": 28,
+   "start": 47.33,
+   "end": 48.9,
+   "te": "సో అప్పుడు నేను ఐ వాస్ రియలీ",
+   "en": "So then I was really"
+  },
+  {
+   "id": 29,
+   "start": 48.9,
+   "end": 49.34,
+   "te": "షాటెడ్",
+   "en": "*shattered*"
+  },
+  {
+   "id": 30,
+   "start": 49.34,
+   "end": 51.605,
+   "te": "ఎందుకంటే ఫస్ట్ నేను చాలా అనుకున్నా",
+   "en": "because I'd really dreamed"
+  },
+  {
+   "id": 31,
+   "start": 51.659,
+   "end": 54.272,
+   "te": "యూరోప్ వెళ్ళాలి చదువుకోవాలి అని బట్ సడన్",
+   "en": "of going to *Europe* to study. But suddenly"
+  },
+  {
+   "id": 32,
+   "start": 54.3,
+   "end": 56.629,
+   "te": "అట్లా వీసా రిజెక్ట్ అయ్యేసరికి",
+   "en": "when the visa got rejected like that,"
+  },
+  {
+   "id": 33,
+   "start": 56.7,
+   "end": 59.564,
+   "te": "కొంచెం ఆ షాక్ అయ్యా నేను ఫస్ట్",
+   "en": "I was in a bit of *shock* at first,"
+  },
+  {
+   "id": 34,
+   "start": 59.611,
+   "end": 60.502,
+   "te": "అండ్ దెన్",
+   "en": "and then"
+  },
+  {
+   "id": 35,
+   "start": 60.539,
+   "end": 62.329,
+   "te": "ఇట్ టుక్ మీ సం టైం టు",
+   "en": "it took me some time to"
+  },
+  {
+   "id": 36,
+   "start": 62.348,
+   "end": 63.644,
+   "te": "రియలైజ్ అండ్ ఐ",
+   "en": "realize, and I"
+  },
+  {
+   "id": 37,
+   "start": 63.659,
+   "end": 65.157,
+   "te": "వాస్ ఎక్స్ప్లోరింగ్ ఫర్ అదర్",
+   "en": "was exploring other"
+  },
+  {
+   "id": 38,
+   "start": 65.18,
+   "end": 68.113,
+   "te": "అపర్చునిటీస్ ఎక్కడైతే మనం వెళ్ళొచ్చు బయట",
+   "en": "*opportunities*, places we could go abroad."
+  },
+  {
+   "id": 39,
+   "start": 68.14,
+   "end": 70.949,
+   "te": "సో ఇటలీ చూశను అఫోర్డబుల్ ఎడ్యుకేషన్",
+   "en": "So I looked at *Italy*: affordable education,"
+  },
+  {
+   "id": 40,
+   "start": 71.02,
+   "end": 73.932,
+   "te": "బెస్ట్ ఎడ్యుకేషన్ ఆ అకామిడేషన్ ఇస్తారు",
+   "en": "best education, they even give accommodation."
+  },
+  {
+   "id": 41,
+   "start": 73.98,
+   "end": 77.031,
+   "te": "అన్నీ బాగున్నాయి దిస్ వాస్ టూ గుడ్",
+   "en": "Everything looked good. This was too good,"
+  },
+  {
+   "id": 42,
+   "start": 77.066,
+   "end": 77.465,
+   "te": "గుడ్",
+   "en": "good"
+  },
+  {
+   "id": 43,
+   "start": 77.5,
+   "end": 79.86,
+   "te": "టు బి ట్రూ కానీ చదివాను రీసర్చ్",
+   "en": "to be *true*. But I read, I researched,"
+  },
+  {
+   "id": 44,
+   "start": 79.909,
+   "end": 80.341,
+   "te": "చేశను",
+   "en": "I did my homework,"
+  },
+  {
+   "id": 45,
+   "start": 80.379,
+   "end": 84.011,
+   "te": "కాలేజెస్ రీసర్చ్ చేశను అండ్ లకీలీ యూనిబో",
+   "en": "researched colleges, and luckily UniBo,"
+  },
+  {
+   "id": 46,
+   "start": 84.06,
+   "end": 85.645,
+   "te": "అని ఒక యూనివర్సిటీ తగిలింది విచ్ ఇస్",
+   "en": "a university, came my way, which is"
+  },
+  {
+   "id": 47,
+   "start": 85.659,
+   "end": 87.067,
+   "te": "హియర్ లైక్ ఇది",
+   "en": "here, like *this*."
+  }
+ ]
+}

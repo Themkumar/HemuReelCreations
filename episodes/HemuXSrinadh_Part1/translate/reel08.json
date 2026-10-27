@@ -1,0 +1,373 @@
+{
+ "reel": "reel08",
+ "languages": [
+  "en"
+ ],
+ "note": "Fill each language with a natural spoken translation of 'te'. Keep names/brands.",
+ "chunks": [
+  {
+   "id": 0,
+   "start": 0.012,
+   "end": 1.71,
+   "te": "ఇటాలియన్ ఇంటర్వ్యూ ఇది",
+   "en": "This Italian interview,"
+  },
+  {
+   "id": 1,
+   "start": 1.71,
+   "end": 3.819,
+   "te": "నా లైఫ్ లోనే ఇచ్చిన బిగ్గెస్ట్ ఇంటర్వ్యూ",
+   "en": "the *biggest* interview of my life,"
+  },
+  {
+   "id": 2,
+   "start": 3.819,
+   "end": 4.261,
+   "te": "ఇది.",
+   "en": "this one."
+  },
+  {
+   "id": 3,
+   "start": 4.299,
+   "end": 5.881,
+   "te": "సో వివా టికెట్ అనే కంపెనీకి నేను",
+   "en": "So I was interviewing with a company"
+  },
+  {
+   "id": 4,
+   "start": 5.9,
+   "end": 7.863,
+   "te": "ఇంటర్వ్యూ చేస్తున్నా అమేజింగ్ ప్యాకేజ్",
+   "en": "called Viva *Ticket*. Amazing package,"
+  },
+  {
+   "id": 5,
+   "start": 7.9,
+   "end": 9.198,
+   "te": "ఎక్సలెంట్ జాబ్",
+   "en": "excellent job."
+  },
+  {
+   "id": 6,
+   "start": 9.348,
+   "end": 10.723,
+   "te": "నేను వెళ్ళాను ఫస్ట్ రౌండ్ ఇచ్చాను",
+   "en": "I went, gave the first round,"
+  },
+  {
+   "id": 7,
+   "start": 10.75,
+   "end": 12.491,
+   "te": "అయిపోయింది. సెకండ్ రౌండ్ ఎవరితో ఉండే",
+   "en": "done. Second round was with..."
+  },
+  {
+   "id": 8,
+   "start": 12.51,
+   "end": 15.007,
+   "te": "అంటే సఈఓ ఆఫ్ ద కంపెనీ హిమసెల్ఫ్",
+   "en": "the *CEO* of the company himself."
+  },
+  {
+   "id": 9,
+   "start": 15.07,
+   "end": 15.512,
+   "te": "ఓకే",
+   "en": "Okay"
+  },
+  {
+   "id": 10,
+   "start": 15.55,
+   "end": 17.817,
+   "te": "సో సఈఓ అంటే ఇప్పుడు తెలుసు కదా",
+   "en": "CEO, you know what that means,"
+  },
+  {
+   "id": 11,
+   "start": 17.841,
+   "end": 18.162,
+   "te": "చీఫ్",
+   "en": "Chief"
+  },
+  {
+   "id": 12,
+   "start": 18.19,
+   "end": 18.75,
+   "te": "ఎగ్జిక్యూటివ్",
+   "en": "Executive"
+  },
+  {
+   "id": 13,
+   "start": 18.75,
+   "end": 19.31,
+   "te": "అవును అవును",
+   "en": "Yes, yes"
+  },
+  {
+   "id": 14,
+   "start": 19.31,
+   "end": 22.044,
+   "te": "అతని కింద ఒక 3000 4000 ఎంప్లాయీస్",
+   "en": "He has 3,000 to *4,000* employees"
+  },
+  {
+   "id": 15,
+   "start": 22.11,
+   "end": 22.845,
+   "te": "ఉంటాడు.",
+   "en": "under him."
+  },
+  {
+   "id": 16,
+   "start": 22.97,
+   "end": 25.45,
+   "te": "నన్ను లాస్ట్ రౌండ్ అతను తీసుకున్నాడు.",
+   "en": "He took my last round himself."
+  },
+  {
+   "id": 17,
+   "start": 25.45,
+   "end": 27.259,
+   "te": "కానీ ఈ కాంటెక్స్ట్ అంతా నాకు తెలిీదు",
+   "en": "But I didn't know any of this context"
+  },
+  {
+   "id": 18,
+   "start": 27.29,
+   "end": 28.835,
+   "te": "ఫస్ట్",
+   "en": "at first."
+  },
+  {
+   "id": 19,
+   "start": 28.969,
+   "end": 31.491,
+   "te": "ఇతను సఈఓ ఇతను ఎవరు ఈ స్టేచర్",
+   "en": "Who this CEO is, what his *stature* is,"
+  },
+  {
+   "id": 20,
+   "start": 31.544,
+   "end": 32.19,
+   "te": "ఏంటి ఈయన",
+   "en": "how many"
+  },
+  {
+   "id": 21,
+   "start": 32.19,
+   "end": 34.33,
+   "te": "వెనకాల ఎంతమంది ఉన్నారు ఈయన ఎన్ని కోట్ల",
+   "en": "people are behind him, how many crores"
+  },
+  {
+   "id": 22,
+   "start": 34.33,
+   "end": 35.9,
+   "te": "ప్రాజెక్ట్ డీల్ చేస్తాడు ఈయన బిజినెస్",
+   "en": "in projects he deals with, what his business is:"
+  },
+  {
+   "id": 23,
+   "start": 35.93,
+   "end": 38.516,
+   "te": "ఏంటి ఇవన్నీ ప్రెజర్ మౌంట్ చేస్తాయి",
+   "en": "all this mounts the *pressure*."
+  },
+  {
+   "id": 24,
+   "start": 38.57,
+   "end": 40.57,
+   "te": "అన్లీడెడ్ ఇన్ఫర్మేషన్ ఇంటర్వ్యూ కి",
+   "en": "Unneeded information for an interview."
+  },
+  {
+   "id": 25,
+   "start": 40.57,
+   "end": 41.159,
+   "te": "రైట్",
+   "en": "Right."
+  },
+  {
+   "id": 26,
+   "start": 41.21,
+   "end": 43.952,
+   "te": "నేను సింపుల్ గా క్లీన్ గా ప్లేన్",
+   "en": "I went in simple, clean,"
+  },
+  {
+   "id": 27,
+   "start": 44.001,
+   "end": 44.229,
+   "te": "గా",
+   "en": "*plain*,"
+  },
+  {
+   "id": 28,
+   "start": 44.249,
+   "end": 45.65,
+   "te": "నార్మల్ బట్టలు వేసుకొని వెళ్ళిపోయినా",
+   "en": "wearing normal clothes,"
+  },
+  {
+   "id": 29,
+   "start": 45.69,
+   "end": 47.69,
+   "te": "ఇంటర్వ్యూలోకి ఇంటర్వ్యూ కి వెళ్ళిపోయినా",
+   "en": "walked into the interview."
+  },
+  {
+   "id": 30,
+   "start": 47.69,
+   "end": 50.29,
+   "te": "అతను ఎవరో వచ్చి కూర్చున్నాడు నాకు వచ్చిన",
+   "en": "Someone came and sat down. What I knew,"
+  },
+  {
+   "id": 31,
+   "start": 50.29,
+   "end": 52.57,
+   "te": "వచ్చుఅని చెప్పా రానివి రానని చెప్పా నాకు",
+   "en": "I said I knew. What I didn't, I said I didn't."
+  },
+  {
+   "id": 32,
+   "start": 52.57,
+   "end": 54.056,
+   "te": "ఇట్లా కాదు ఇట్లా చేద్దాం అని చెప్పి",
+   "en": "\"Not like this, let's do it like this,\" I said."
+  },
+  {
+   "id": 33,
+   "start": 54.079,
+   "end": 54.17,
+   "te": "ఐ",
+   "en": "I"
+  },
+  {
+   "id": 34,
+   "start": 54.17,
+   "end": 55.245,
+   "te": "వాస్ ఫ్రీ",
+   "en": "was *free*."
+  },
+  {
+   "id": 35,
+   "start": 55.29,
+   "end": 57.546,
+   "te": "ఓన్లీ థింగ్ ఐ వాస్ డూయింగ్ వాస్",
+   "en": "The only thing I was doing was"
+  },
+  {
+   "id": 36,
+   "start": 57.574,
+   "end": 57.902,
+   "te": "100%",
+   "en": "100%"
+  },
+  {
+   "id": 37,
+   "start": 57.93,
+   "end": 59.61,
+   "te": "కాన్ఫిడెంట్ నేను ఏం చెప్పాలనుకున్నా",
+   "en": "*confident*. Whatever I wanted to say,"
+  },
+  {
+   "id": 38,
+   "start": 59.61,
+   "end": 60.969,
+   "te": "క్లియర్ గా చెప్పేస్తున్నా",
+   "en": "I said it clearly,"
+  },
+  {
+   "id": 39,
+   "start": 60.969,
+   "end": 63.386,
+   "te": "ఎందుకంటే నాకు ఆయన ఓరో తెలవదు.",
+   "en": "because I had no idea who he was."
+  },
+  {
+   "id": 40,
+   "start": 63.435,
+   "end": 63.62,
+   "te": "ఉ",
+   "en": "Hmm."
+  },
+  {
+   "id": 41,
+   "start": 63.62,
+   "end": 65.769,
+   "te": "సో అది కూడా ఒక యడెడ్ అడ్వాంటేజ్",
+   "en": "So that was an added *advantage* too."
+  },
+  {
+   "id": 42,
+   "start": 65.769,
+   "end": 68.234,
+   "te": "మనము దీనిలోనుంచి ఏం నేర్చుకోవచ్చు ఏం",
+   "en": "What can we learn from this? What"
+  },
+  {
+   "id": 43,
+   "start": 68.249,
+   "end": 70.785,
+   "te": "నేర్చుకున్నా అంటే నేను వెన్ యు ఆర్",
+   "en": "I learned is: when you're"
+  },
+  {
+   "id": 44,
+   "start": 70.81,
+   "end": 72.867,
+   "te": "అన్వేర్ ఆఫ్ ద సిచువేషన్స్ యు విల్",
+   "en": "unaware of the situation, you will"
+  },
+  {
+   "id": 45,
+   "start": 72.89,
+   "end": 74.95,
+   "te": "పర్ఫామ్ అట్ యువర్ బెస్ట్ అండ్ మాక్స్",
+   "en": "perform at your *best* and max."
+  },
+  {
+   "id": 46,
+   "start": 75.029,
+   "end": 77.495,
+   "te": "ఎప్పుడైతే నువ్వు నీ ఇమాజినరీ బ్రెయిన్ ని",
+   "en": "When you shut off your"
+  },
+  {
+   "id": 47,
+   "start": 77.509,
+   "end": 80.109,
+   "te": "షట్ చేస్తావో అప్పుడు నీ ట్రూ సెల్ఫ్",
+   "en": "imaginary brain, your true *self*"
+  },
+  {
+   "id": 48,
+   "start": 80.15,
+   "end": 81.883,
+   "te": "బయటికి వచ్చేస్తది. నీ ట్రూ సెల్ బయటికి",
+   "en": "comes out. And when your true self comes"
+  },
+  {
+   "id": 49,
+   "start": 81.91,
+   "end": 83.316,
+   "te": "వచ్చినప్పుడు జనాలకి నువ్వు ఆబ్బియస్లీ",
+   "en": "out, people obviously"
+  },
+  {
+   "id": 50,
+   "start": 83.35,
+   "end": 85.0,
+   "te": "నచ్చేస్తావ్ ఇంటర్వ్యూస్ కూడా అట్లానే",
+   "en": "*like* you. That's how you"
+  },
+  {
+   "id": 51,
+   "start": 85.029,
+   "end": 86.576,
+   "te": "క్రాక్ చేస్తావ్. ఎక్జక్ట్లీ",
+   "en": "crack interviews. Exactly."
+  }
+ ]
+}
